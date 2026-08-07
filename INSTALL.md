@@ -65,7 +65,7 @@ pnpm dev         # Node + SQLite
 
 Do **not** replace your whole project with this template. Copy shop routes and `src/lib/commerce` into your site and keep your `Base.astro`.
 
-Full checklist: [ADD_TO_EXISTING_SITE.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/ADD_TO_EXISTING_SITE.md).
+Full checklist: [docs/ADD_TO_EXISTING_SITE.md](./docs/ADD_TO_EXISTING_SITE.md).
 
 ---
 
@@ -88,7 +88,7 @@ Configure in **Admin → Commerce → Store setup / Payment settings**. Swap pro
 1. Open **Commerce → Store setup** and run the launch checklist  
 2. Add products  
 3. Place a test order (simulated payment is fine)  
-4. Read [GETTING_STARTED.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/GETTING_STARTED.md)
+4. Read [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)
 
 ---
 

@@ -11,6 +11,8 @@ Local development uses **Node + SQLite** (`pnpm dev`). Cloudflare is opt-in (`pn
 
 Shared EmDash + commerce plugin wiring (upload cap, `commercePlugin()` descriptor, `siteUrl` env) lives in **`emdash-commerce-storefront.mjs`** — change that file once; both Astro configs only pass `database` / `storage`.
 
+**Other EmDash DB backends** (Postgres, Hyperdrive, libSQL) are supported by EmDash; this starter does not ship those configs. Commerce data is dialect-agnostic via plugin storage — see [EmDash database options](https://docs.emdashcms.com/deployment/database/). EmDash runs core migrations (including **054** media upload attempts on 0.32+) on first request after upgrade.
+
 ---
 
 ## 1. Environment variables (all targets)

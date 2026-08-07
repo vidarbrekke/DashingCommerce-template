@@ -13,9 +13,9 @@ Pick your path:
 | -------- | ----- |
 | Starting a **new** store | [New site](#a-new-site) |
 | Adding commerce to an **existing EmDash** site | [Existing site](./ADD_TO_EXISTING_SITE.md) |
-| Deploying Node or Cloudflare | [DEPLOYMENT.md](../../../../demos/storefront/DEPLOYMENT.md) (same for template) |
+| Deploying Node or Cloudflare | [DEPLOYMENT.md](../DEPLOYMENT.md) |
 
-**Status:** remediation / robustness track — not production-complete. See root [`HANDOVER.md`](../../../../HANDOVER.md).
+**Status:** remediation / robustness track — not production-complete. See root [`HANDOVER.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/HANDOVER.md).
 
 ---
 
@@ -49,9 +49,10 @@ Then follow **[INSTALL.md](https://github.com/vidarbrekke/DashingCommerce-templa
 ### What the starter includes
 
 - Shop routes: `/shop`, product PDP, cart, checkout, pay, account, order status
-- Shared shell: `Base.astro`, header, footer, `global.css` (coherent with CMS pages)
+- Shared shell: `Base.astro`, header, footer, `src/styles/global.css` (shared with CMS pages)
 - CMS pages: `/pages/[slug]` (About, FAQ, TOS, …)
-- Product layout registry (swap classic → more layouts later)
+- Single PDP component (`ProductLayout.astro`) with `classic` / `stacked` via plugin setting `productLayout` (env `STOREFRONT_PRODUCT_LAYOUT` overrides)
+- Storefront skin via plugin setting `storefrontSkin` (env `STOREFRONT_SKIN` overrides)
 - Seed: menus + `pages` collection sample
 - **Starter providers** (replaceable): demo flat shipping / percent tax, EasyPost, TaxJar, Stripe, PayPal — wired via `storefront-demo` entrypoint + admin settings
 
@@ -62,13 +63,14 @@ Then follow **[INSTALL.md](https://github.com/vidarbrekke/DashingCommerce-templa
 3. Set keys under plugin settings / **Payment settings**:
    - Stripe / PayPal / payment mode
    - EasyPost / TaxJar (optional; without keys the demo flat-rate + percent tax stay active)
-4. Add products under **Products**
+4. Set **Appearance** (product layout / skin) under plugin settings if you want non-defaults
+5. Add products under **Products**
 
-Env vars for local provider overrides (optional): `EASYPOST_API_KEY`, `TAXJAR_API_KEY`, `TAXJAR_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENVIRONMENT`. See [`MODULE_PROVIDER_GUIDE.md`](./MODULE_PROVIDER_GUIDE.md) and [`QUOTE_PROVIDER_GUIDE.md`](./QUOTE_PROVIDER_GUIDE.md).
+Env vars for local provider overrides (optional): `EASYPOST_API_KEY`, `TAXJAR_API_KEY`, `TAXJAR_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENVIRONMENT`. See [`MODULE_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/MODULE_PROVIDER_GUIDE.md) and [`QUOTE_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/QUOTE_PROVIDER_GUIDE.md).
 
 ### Swap demo providers for production
 
-In `astro.config` / `emdash-commerce-storefront.mjs`, omit `COMMERCE_STOREFRONT_DEMO_ENTRYPOINT` and register production providers via `createPlugin({ extensions: { … } })`. Details: [`MODULE_PROVIDER_GUIDE.md`](./MODULE_PROVIDER_GUIDE.md), [`CHECKOUT_PROVIDER_GATES.md`](./CHECKOUT_PROVIDER_GATES.md).
+In `astro.config` / `emdash-commerce-storefront.mjs`, omit `COMMERCE_STOREFRONT_DEMO_ENTRYPOINT` and register production providers via `createPlugin({ extensions: { … } })`. Details: [`MODULE_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/MODULE_PROVIDER_GUIDE.md), [`CHECKOUT_PROVIDER_GATES.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/CHECKOUT_PROVIDER_GATES.md).
 
 ---
 
@@ -100,13 +102,15 @@ Plugin (engine)
   └── /_emdash/admin/plugins/commerce/*
 ```
 
-EmDash does **not** download a theme when you enable a plugin. Themes are chosen at **scaffold / deploy** time. Skins and layout variants can be switched via settings once you wire them (see Store setup → Appearance).
+EmDash does **not** download a theme when you enable a plugin. Themes are chosen at **scaffold / deploy** time. Product layout and skin switch via **Admin → Commerce → plugin settings** (starter themes already read those settings).
+
+Commerce data uses EmDash **plugin storage** (not custom SQL), so the plugin stays dialect-agnostic across SQLite, D1, and Postgres/Hyperdrive. Shipped starter configs: Node+SQLite and Cloudflare+D1 — see `DEPLOYMENT.md`.
 
 ---
 
 ## Next reading
 
 - [ADD_TO_EXISTING_SITE.md](./ADD_TO_EXISTING_SITE.md) — file-level checklist
-- [LIVE_PAYMENT_VERIFICATION.md](./LIVE_PAYMENT_VERIFICATION.md) — Stripe/PayPal sandbox
-- [MARKETPLACE.md](./MARKETPLACE.md) — native vs sandboxed
-- Root [ROADMAP.md](../../../../ROADMAP.md)
+- [LIVE_PAYMENT_VERIFICATION.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/LIVE_PAYMENT_VERIFICATION.md) — Stripe/PayPal sandbox
+- [MARKETPLACE.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/MARKETPLACE.md) — native vs sandboxed
+- Root [ROADMAP.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/ROADMAP.md) / [HANDOVER.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/HANDOVER.md) — status (monorepo)

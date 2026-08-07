@@ -36,8 +36,9 @@ npm create astro@latest my-shop -- --template github:vidarbrekke/DashingCommerce
 | Doc | Audience |
 | --- | -------- |
 | [INSTALL.md](./INSTALL.md) | New site **and** existing EmDash install |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Node vs Cloudflare |
-| Plugin [GETTING_STARTED.md](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/GETTING_STARTED.md) | Full onboarding |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Node (SQLite) vs Cloudflare (D1) |
+| [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md) | Full onboarding |
+| [docs/ADD_TO_EXISTING_SITE.md](./docs/ADD_TO_EXISTING_SITE.md) | Add shop to an existing EmDash site |
 
 ## Status
 

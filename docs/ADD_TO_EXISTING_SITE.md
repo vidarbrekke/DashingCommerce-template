@@ -4,7 +4,7 @@ Use this when you already have an EmDash Astro project (blog, marketing, custom 
 
 **Goal:** plugin APIs + admin + `/shop/*` routes that reuse **your** header/footer/CSS.
 
-**Not production-complete** — see [`HANDOVER.md`](../../../../HANDOVER.md).
+**Not production-complete** — see [`HANDOVER.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/HANDOVER.md).
 
 ---
 
@@ -13,12 +13,14 @@ Use this when you already have an EmDash Astro project (blog, marketing, custom 
 - EmDash **≥ 0.32.0** (SSR / `output: "server"`)
 - Ability to register a **native** plugin (`format: "native"`)
 - Node **≥ 22** (or Cloudflare Workers for CF deploy)
-- Until npm publish: a local clone of [DashingCommerce-for-EmDash](https://github.com/vidarbrekke/DashingCommerce-for-EmDash)
+- Until npm publish: a local clone of [DashingCommerce-for-EmDash](https://github.com/vidarbrekke/DashingCommerce-for-EmDash) (see [`HANDOVER.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/HANDOVER.md) for the current sync branch)
 
 Reference implementation (copy from here):
 
 - Monorepo demo: `demos/storefront/`
 - Exported template: `templates/commerce/` or [DashingCommerce-template](https://github.com/vidarbrekke/DashingCommerce-template)
+
+Keep your existing EmDash **database/storage** ports (SQLite, D1, Postgres/Hyperdrive, …). Commerce data is plugin storage — no commerce-specific SQL dialect work.
 
 ---
 
@@ -71,7 +73,7 @@ export default defineConfig({
 });
 ```
 
-Production sites should move off the demo entrypoint and pass `createPlugin({ extensions: { paymentProviders, shippingRateProviders, taxQuoteProviders, checkoutProviderGates } })`. See [`MODULE_PROVIDER_GUIDE.md`](./MODULE_PROVIDER_GUIDE.md).
+Production sites should move off the demo entrypoint and pass `createPlugin({ extensions: { paymentProviders, shippingRateProviders, taxQuoteProviders, checkoutProviderGates } })`. See [`MODULE_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/MODULE_PROVIDER_GUIDE.md).
 
 Shared helper pattern (Node + CF): see `demos/storefront/emdash-commerce-storefront.mjs`.
 
@@ -108,7 +110,7 @@ Copy these from `demos/storefront` (or the template) into your site, then **adap
 | ------------- | ------- |
 | `src/components/ProductCatalogMeta.astro` | Brand/category chips |
 | `src/components/commerce/ProductLayout.astro` | PDP layout (`classic` / `stacked` via `layoutId`) |
-| `src/lib/commerce/storefront-appearance.ts` | Layout + skin (plugin settings + env) |
+| `src/lib/commerce/storefront-appearance.ts` | Resolves layout + skin from plugin settings (env overrides) |
 | `src/lib/commerce/product-detail-page.ts` | PDP data + cart POST |
 | `src/pages/pages/[slug].astro` | CMS pages (if you don’t already have one) |
 | `src/layouts/PageDefault.astro` | CMS page chrome matching shop tokens |
@@ -149,7 +151,7 @@ node ./scripts/seed-commerce-plugin-storage.mjs
 1. `/_emdash/admin/plugins/commerce/setup` — Launch checklist  
 2. Payment mode + Stripe/PayPal keys  
 3. EasyPost / TaxJar keys (optional)  
-4. **Appearance** (product layout / skin) when exposed in settings  
+4. **Appearance** (product layout / skin) in plugin settings  
 5. Create or import products  
 
 ---
@@ -186,10 +188,10 @@ Starter (`COMMERCE_STOREFRONT_DEMO_ENTRYPOINT`) registers:
 
 Replace with your own `extensions` map when going live. Guides:
 
-- [`MODULE_PROVIDER_GUIDE.md`](./MODULE_PROVIDER_GUIDE.md)
-- [`MONEY_PATH_PROVIDER_GUIDE.md`](./MONEY_PATH_PROVIDER_GUIDE.md)
-- [`QUOTE_PROVIDER_GUIDE.md`](./QUOTE_PROVIDER_GUIDE.md)
-- [`CHECKOUT_PROVIDER_GATES.md`](./CHECKOUT_PROVIDER_GATES.md)
+- [`MODULE_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/MODULE_PROVIDER_GUIDE.md)
+- [`MONEY_PATH_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/MONEY_PATH_PROVIDER_GUIDE.md)
+- [`QUOTE_PROVIDER_GUIDE.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/QUOTE_PROVIDER_GUIDE.md)
+- [`CHECKOUT_PROVIDER_GATES.md`](https://github.com/vidarbrekke/DashingCommerce-for-EmDash/blob/main/packages/plugins/dashing-commerce/docs/CHECKOUT_PROVIDER_GATES.md)
 
 ---
 
