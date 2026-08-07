@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build / Astro
+dist/
+.astro/
+.wrangler/
+
+# Local EmDash data (never commit)
+data.db
+data.db-*
+uploads/
+.env
+.dev.vars
+
+# OS / IDE
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/mcp.json
+
+# Tests
+test-results/
+playwright-report/
+coverage/

@@ -1,0 +1,260 @@
+---
+import Base from "../../layouts/Base.astro";
+import { buildClient } from "../../lib/commerce/client";
+import {
+	readCookie,
+	cookieHeader,
+	formatPrice,
+	CART_ID_COOKIE,
+	OWNER_TOKEN_COOKIE,
+} from "../../lib/commerce/cart";
+import {
+	cartLineKey,
+	resolveCartLineVisuals,
+	type CartLineVisual,
+} from "../../lib/commerce/cart-line-visuals.ts";
+import { updateCartFromForm } from "../../lib/commerce/cart-update";
+import { resolveMaxPurchasableByLine } from "../../lib/commerce/cart-clamp";
+import type { CartGetResponseContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+import {
+	MEDIA_STORE_CART_WIDTH,
+	getMediaRenditionUrl,
+} from "@emdash-cms/plugin-dashing-commerce/media-rendition";
+
+const client = buildClient(Astro.url.origin);
+const siteOrigin = Astro.url.origin;
+
+const cartId = readCookie(Astro.request, CART_ID_COOKIE);
+const ownerToken = readCookie(Astro.request, OWNER_TOKEN_COOKIE);
+
+let cart: CartGetResponseContract | null = null;
+let fetchError: string | null = null;
+let updateError: string | null = null;
+let updateNotice: string | null = null;
+let lineVisualByKey = new Map<string, CartLineVisual>();
+let maxQuantityByLineKey = new Map<string, number>();
+
+function cartLineInventoryKey(productId: string, variantId?: string): string {
+	return `${productId}::${variantId ?? ""}`;
+}
+
+// Handle remove/update POST
+if (Astro.request.method === "POST" && cartId && ownerToken) {
+	const formData = await Astro.request.formData();
+	const action = formData.get("_action")?.toString();
+
+	if (action === "update") {
+		try {
+			const updateResult = await updateCartFromForm(client, {
+				cartId,
+				ownerToken,
+				formData,
+			});
+			if (updateResult.shouldRedirect) {
+				return Astro.redirect("/shop/cart");
+			} else {
+				updateNotice = updateResult.noticeMessage;
+			}
+		} catch (err) {
+			updateError =
+				err instanceof PhaseOneCommerceError ? err.message : "Failed to update cart";
+		}
+	}
+}
+
+// Load cart
+if (cartId && ownerToken) {
+	try {
+		cart = await client.getCart({ cartId, ownerToken });
+	} catch (err) {
+		if (
+			err instanceof PhaseOneCommerceError &&
+			(err.code === "cart_not_found" ||
+				err.code === "cart_expired" ||
+				err.code === "cart_token_invalid")
+		) {
+			const headers = new Headers({ Location: "/shop/cart" });
+			headers.append("Set-Cookie", cookieHeader(CART_ID_COOKIE, ""));
+			headers.append("Set-Cookie", cookieHeader(OWNER_TOKEN_COOKIE, ""));
+			return new Response(null, { status: 303, headers });
+		}
+		fetchError = err instanceof Error ? err.message : "Failed to load cart";
+	}
+} else if (cartId && !ownerToken) {
+	fetchError = "Cart session expired. Please add items again.";
+}
+
+if (cart && cart.lineItems.length > 0) {
+	lineVisualByKey = await resolveCartLineVisuals(client, cart.lineItems);
+	maxQuantityByLineKey = await resolveMaxPurchasableByLine(client, cart.lineItems);
+}
+
+const total = cart?.subtotalMinor ?? 0;
+---
+
+<Base title="Cart">
+	<div class="container">
+		<div class="page-header">
+			<h1>Your cart</h1>
+		</div>
+
+		{fetchError && <div class="alert alert-error">{fetchError}</div>}
+		{updateError && <div class="alert alert-error">{updateError}</div>}
+		{updateNotice && <div class="alert alert-success">{updateNotice}</div>}
+
+		{!cart || cart.lineItems.length === 0 ? (
+			<div class="empty-state">
+				<h2>Your cart is empty</h2>
+				<p style="margin-bottom:1.25rem;">Browse the shop to add products.</p>
+				<a href="/shop" class="btn btn-primary">Browse shop</a>
+			</div>
+		) : (
+			<div class="two-col">
+				<div>
+					<form method="POST">
+						<input type="hidden" name="_action" value="update" />
+						<input type="hidden" name="currency" value={cart.currency} />
+						<table class="cart-table">
+							<thead>
+								<tr>
+									<th class="cart-col-remove" scope="col">
+										<span class="visually-hidden">Remove</span>
+									</th>
+									<th>Product</th>
+									<th>Price</th>
+									<th>Qty</th>
+									<th>Subtotal</th>
+								</tr>
+							</thead>
+							<tbody>
+								{cart.lineItems.map((item) => {
+									const vis = lineVisualByKey.get(cartLineKey(item.productId, item.variantId));
+									const lineKey = cartLineInventoryKey(item.productId, item.variantId);
+									const maxQuantity = maxQuantityByLineKey.get(lineKey) ?? item.quantity;
+									const title = vis?.title ?? item.productId;
+									const subtitle = vis?.variantSubtitle ?? null;
+									const fulfillment = vis?.fulfillmentKind ?? "unknown";
+									const thumb = vis?.imageSrc ?? null;
+									const thumbAlt = vis?.imageAlt ?? title;
+									const removeLabel = subtitle
+										? `Remove ${title}, ${subtitle} from cart`
+										: `Remove ${title} from cart`;
+									return (
+										<tr>
+										<td class="cart-col-remove">
+											<button
+												type="button"
+												class="cart-remove-btn"
+												aria-label={removeLabel}
+												onclick={`const f=this.closest("form");const r=this.closest("tr");const q=r&&r.querySelector('input[name="quantity"]');if(q&&f){q.value="0";f.requestSubmit();}`}
+											>
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													width="18"
+													height="18"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="2"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													aria-hidden="true"
+												>
+													<path d="M3 6h18" />
+													<path d="M8 6V4h8v2" />
+													<path d="M19 6l-1 14H6L5 6" />
+													<path d="M10 11v6M14 11v6" />
+												</svg>
+											</button>
+										</td>
+										<td>
+											<input type="hidden" name="productId" value={item.productId} />
+											<input type="hidden" name="variantId" value={item.variantId ?? ""} />
+											<input type="hidden" name="inventoryVersion" value={item.inventoryVersion} />
+											<input type="hidden" name="unitPriceMinor" value={item.unitPriceMinor} />
+											<input type="hidden" name="lineLabel" value={subtitle ? `${title} / ${subtitle}` : title} />
+											<div class="cart-line-product">
+												<div class="cart-line-product-text">
+													<div class="cart-line-title">{title}</div>
+													{subtitle && <div class="cart-line-variant">{subtitle}</div>}
+													{fulfillment !== "unknown" && (
+														<div class="cart-line-variant">
+															{fulfillment === "digital" ? "Digital download" : "Physical shipment"}
+														</div>
+													)}
+												</div>
+												{thumb ? (
+													<img
+														class="cart-line-thumb"
+														src={getMediaRenditionUrl(thumb, {
+															width: MEDIA_STORE_CART_WIDTH,
+															siteOrigin,
+														})}
+														alt={thumbAlt}
+														loading="lazy"
+													/>
+												) : (
+													<div class="cart-line-thumb cart-line-thumb--placeholder" aria-hidden="true" />
+												)}
+											</div>
+										</td>
+										<td>{formatPrice(item.unitPriceMinor, cart!.currency)}</td>
+										<td>
+											<input
+												type="number"
+												name="quantity"
+												value={item.quantity}
+												min="0"
+												max={maxQuantity}
+												style="width:64px; padding:0.35rem 0.5rem; border:1px solid var(--color-border); border-radius:var(--radius);"
+											/>
+											{maxQuantity > 0 && (
+												<div style="font-size:0.75rem; color:var(--color-muted); margin-top:0.25rem;">
+													{maxQuantity} in stock
+												</div>
+											)}
+										</td>
+										<td>{formatPrice(item.lineTotalMinor, cart!.currency)}</td>
+									</tr>
+									);
+								})}
+							</tbody>
+						</table>
+
+						<div style="margin-top:1rem; display:flex; gap:0.75rem; align-items:center;">
+							<button type="submit" class="btn btn-secondary">Update cart</button>
+						</div>
+					</form>
+				</div>
+
+				<div class="card">
+					<h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">Order summary</h2>
+					<div class="order-summary">
+						{cart.lineItems.map((item) => (
+							<div class="order-row">
+								<span style="color:var(--color-muted); font-size:0.85rem;">× {item.quantity}</span>
+								<span>{formatPrice(item.lineTotalMinor, cart!.currency)}</span>
+							</div>
+						))}
+						<div class="order-row total">
+							<span>Total</span>
+							<span>{formatPrice(total, cart.currency)}</span>
+						</div>
+					</div>
+
+					<a
+						href="/shop/checkout"
+						class="btn btn-primary"
+						style="width:100%; justify-content:center; margin-top:1.25rem;"
+					>
+						Proceed to checkout
+					</a>
+					<a href="/shop" style="display:block; text-align:center; margin-top:0.75rem; font-size:0.875rem; color:var(--color-muted);">
+						Continue shopping
+					</a>
+				</div>
+			</div>
+		)}
+	</div>
+</Base>

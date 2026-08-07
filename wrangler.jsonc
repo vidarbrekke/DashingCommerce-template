@@ -1,0 +1,32 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	// Full deploy steps: ./DEPLOYMENT.md
+	// Rename for your account. Create resources:
+	//   wrangler d1 create dashing-commerce-storefront-cf
+	//   wrangler r2 bucket create dashing-commerce-storefront-media
+	"name": "dashing-commerce-storefront-cf",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "dashing-commerce-storefront-cf",
+			"database_id": "local",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "dashing-commerce-storefront-media",
+		},
+	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	// Astro + @astrojs/cloudflare default: KV binding `SESSION` for Astro session driver.
+	// Omitted here so Wrangler can auto-provision on first `wrangler deploy` (see Cloudflare "automatic provisioning").
+	// For `wrangler dev` before deploy, add: "kv_namespaces": [{ "binding": "SESSION", "id": "<from wrangler kv namespace create>" }]
+}

@@ -1,0 +1,57 @@
+---
+import Base from "../../layouts/Base.astro";
+import { buildClient } from "../../lib/commerce/client";
+import type { CustomerProfileContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+
+const client = buildClient(Astro.url.origin);
+const sessionCookie = Astro.request.headers.get("cookie") ?? "";
+
+let profile: CustomerProfileContract | null = null;
+let fetchError: string | null = null;
+
+try {
+	profile = await client.getCustomerProfile({
+		headers: { Cookie: sessionCookie },
+	});
+} catch (err) {
+	if (err instanceof PhaseOneCommerceError && err.code === "unauthorized") {
+		return Astro.redirect(`/shop/login?redirect=${encodeURIComponent("/shop/my-account")}`);
+	}
+	fetchError = err instanceof Error ? err.message : "Failed to load profile";
+}
+---
+
+<Base title="My Account">
+	<div class="container">
+		<div class="page-header">
+			<h1>My Account</h1>
+		</div>
+
+		{fetchError && <div class="alert alert-error">{fetchError}</div>}
+
+		{profile && (
+			<div class="two-col">
+				<div class="card">
+					<h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">Profile</h2>
+					<div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.9rem;">
+						<div><strong>Name:</strong> {profile.customer.name}</div>
+						<div><strong>Email:</strong> {profile.customer.email}</div>
+						<div><strong>Status:</strong> {profile.customer.status}</div>
+						<div><strong>Since:</strong> {new Date(profile.customer.createdAt).toLocaleDateString()}</div>
+					</div>
+				</div>
+
+				<div class="card">
+					<h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">Orders</h2>
+					<p style="font-size:0.875rem; color:var(--color-muted); margin-bottom:1rem;">
+						View your order history and track shipments.
+					</p>
+					<a href="/shop/my-account/orders" class="btn btn-primary" style="width:100%; justify-content:center;">
+						View orders
+					</a>
+				</div>
+			</div>
+		)}
+	</div>
+</Base>

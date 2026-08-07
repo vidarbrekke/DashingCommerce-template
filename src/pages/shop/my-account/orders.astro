@@ -1,0 +1,79 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { buildClient } from "../../../lib/commerce/client";
+import { formatPrice } from "../../../lib/commerce/cart";
+import type { CustomerOrderListContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+
+const client = buildClient(Astro.url.origin);
+const sessionCookie = Astro.request.headers.get("cookie") ?? "";
+
+let orders: CustomerOrderListContract | null = null;
+let fetchError: string | null = null;
+
+try {
+	orders = await client.getCustomerOrders({
+		headers: { Cookie: sessionCookie },
+	});
+} catch (err) {
+	if (err instanceof PhaseOneCommerceError && err.code === "unauthorized") {
+		return Astro.redirect(`/shop/login?redirect=${encodeURIComponent("/shop/my-account/orders")}`);
+	}
+	fetchError = err instanceof Error ? err.message : "Failed to load orders";
+}
+---
+
+<Base title="My Orders">
+	<div class="container">
+		<div class="page-header">
+			<h1>My Orders</h1>
+			<a href="/shop/my-account" class="btn btn-secondary" style="font-size:0.85rem;">
+				&larr; Back to account
+			</a>
+		</div>
+
+		{fetchError && <div class="alert alert-error">{fetchError}</div>}
+
+		{orders && orders.items.length === 0 && (
+			<div class="empty-state">
+				<h2>No orders yet</h2>
+				<a href="/shop" class="btn btn-secondary" style="margin-top:1rem;">Start shopping</a>
+			</div>
+		)}
+
+		{orders && orders.items.length > 0 && (
+			<div class="card">
+				<table class="cart-table">
+					<thead>
+						<tr>
+							<th>Order</th>
+							<th>Date</th>
+							<th>Items</th>
+							<th>Status</th>
+							<th>Total</th>
+						</tr>
+					</thead>
+					<tbody>
+						{orders.items.map((item) => (
+							<tr>
+								<td style="font-size:0.85rem;">
+									<code>{item.id.slice(0, 12)}&hellip;</code>
+								</td>
+								<td style="font-size:0.85rem; color:var(--color-muted);">
+									{new Date(item.createdAt).toLocaleDateString()}
+								</td>
+								<td>{item.lineItemCount}</td>
+								<td>
+									<span class={`badge ${item.paymentPhase === "completed" || item.paymentPhase === "finalized" ? "badge-green" : "badge-yellow"}`}>
+										{item.paymentPhase}
+									</span>
+								</td>
+								<td>{formatPrice(item.totalMinor, item.currency)}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		)}
+	</div>
+</Base>

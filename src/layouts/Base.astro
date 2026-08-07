@@ -1,0 +1,37 @@
+---
+import { getMenu } from "emdash";
+
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { resolveStorefrontSkinId } from "../lib/commerce/storefront-appearance";
+
+interface Props {
+	title: string;
+	description?: string;
+}
+
+const { title, description = "DashingCommerce storefront demo" } = Astro.props;
+const currentPath = Astro.url.pathname;
+const menu = await getMenu("primary");
+const skin = resolveStorefrontSkinId();
+---
+
+<!doctype html>
+<html lang="en" data-skin={skin}>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="description" content={description} />
+	<title>{title} — DashingCommerce</title>
+	<link rel="stylesheet" href="/styles/global.css" />
+</head>
+<body>
+	<SiteHeader menu={menu} currentPath={currentPath} />
+
+	<main>
+		<slot />
+	</main>
+
+	<SiteFooter />
+</body>
+</html>

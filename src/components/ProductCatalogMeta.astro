@@ -1,0 +1,38 @@
+---
+import { shopBrandUrl, shopCategoryUrl, shopTagUrl } from "../lib/commerce/shop-filters";
+
+interface CatalogRef {
+	id: string;
+	name: string;
+	slug: string;
+}
+
+interface Props {
+	brand?: CatalogRef | null;
+	categories?: CatalogRef[];
+	tags?: CatalogRef[];
+}
+
+const { brand, categories = [], tags = [] } = Astro.props;
+const hasMeta = Boolean(brand) || categories.length > 0 || tags.length > 0;
+---
+
+{hasMeta && (
+	<div class="product-catalog-meta">
+		{brand && (
+			<a href={shopBrandUrl(brand.id)} class="product-catalog-meta-link">
+				{brand.name}
+			</a>
+		)}
+		{categories.map((category) => (
+			<a href={shopCategoryUrl(category.id)} class="product-catalog-meta-link">
+				{category.name}
+			</a>
+		))}
+		{tags.map((tag) => (
+			<a href={shopTagUrl(tag.id)} class="product-catalog-meta-link">
+				#{tag.name}
+			</a>
+		))}
+	</div>
+)}

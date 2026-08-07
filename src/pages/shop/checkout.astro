@@ -1,0 +1,478 @@
+---
+/**
+ * Unified checkout — contact, address, shipping, tax, and payment on one page.
+ */
+import Base from "../../layouts/Base.astro";
+import { buildClient } from "../../lib/commerce/client";
+import {
+	readCookie,
+	formatPrice,
+	CART_ID_COOKIE,
+	OWNER_TOKEN_COOKIE,
+	ORDER_ID_PARAM,
+	FINALIZE_TOKEN_PARAM,
+	resolveOwnerTokenFromCookie,
+	normalizeCartId,
+} from "../../lib/commerce/cart";
+import { cartLineKey, resolveCartLineVisuals } from "../../lib/commerce/cart-line-visuals.ts";
+import { orderNeedsShipping } from "../../lib/commerce/checkout-order-helpers.ts";
+import { US_REGIONS } from "../../lib/commerce/us-regions.ts";
+import type { CheckoutSummaryLine } from "../../lib/commerce/checkout-page-client.ts";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+import type { CartGetResponseContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import "../../styles/checkout.css";
+import {
+	MEDIA_STORE_CART_WIDTH,
+	getMediaRenditionUrl,
+} from "@emdash-cms/plugin-dashing-commerce/media-rendition";
+
+const client = buildClient(Astro.url.origin);
+const siteOrigin = Astro.url.origin;
+
+const orderIdParam = Astro.url.searchParams.get(ORDER_ID_PARAM);
+const finalizeTokenParam = Astro.url.searchParams.get(FINALIZE_TOKEN_PARAM);
+
+const cartId = normalizeCartId(readCookie(Astro.request, CART_ID_COOKIE));
+const ownerToken = resolveOwnerTokenFromCookie(readCookie(Astro.request, OWNER_TOKEN_COOKIE));
+
+if (!orderIdParam && (!cartId || !ownerToken)) {
+	return Astro.redirect("/shop/cart");
+}
+
+let fetchError: string | null = null;
+let cart: CartGetResponseContract | null = null;
+let summaryLines: CheckoutSummaryLine[] = [];
+let currency = "USD";
+let subtotalMinor = 0;
+let requiresShipping = false;
+let resumeOrderId = orderIdParam ?? undefined;
+let resumeFinalizeToken = finalizeTokenParam ?? undefined;
+
+try {
+	if (orderIdParam && finalizeTokenParam) {
+		const loaded = await client.getOrder({
+			orderId: orderIdParam,
+			finalizeToken: finalizeTokenParam,
+		});
+		if (loaded.order.paymentPhase !== "initiated") {
+			fetchError = "This order is no longer awaiting payment.";
+		} else {
+			currency = loaded.order.currency;
+			subtotalMinor = loaded.order.subtotalMinor ?? loaded.order.totalMinor;
+			requiresShipping = orderNeedsShipping(loaded.order);
+			const visuals = await resolveCartLineVisuals(
+				client,
+				loaded.order.lineItems.map((line) => ({
+					productId: line.productId,
+					variantId: line.variantId,
+				})),
+			);
+			summaryLines = loaded.order.lineItems.map((line) => {
+				const vis = visuals.get(cartLineKey(line.productId, line.variantId));
+				const snapshotTitle =
+					typeof line.snapshot?.productTitle === "string" ? line.snapshot.productTitle : null;
+				return {
+					key: cartLineKey(line.productId, line.variantId),
+					title: vis?.title ?? snapshotTitle ?? line.productId,
+					subtitle: vis?.variantSubtitle ?? null,
+					quantity: line.quantity,
+					lineTotalMinor: line.unitPriceMinor * line.quantity,
+					imageSrc: vis?.imageSrc ?? null,
+					imageAlt: vis?.imageAlt ?? vis?.title ?? line.productId,
+				};
+			});
+		}
+	} else if (cartId && ownerToken) {
+		cart = await client.getCart({ cartId, ownerToken });
+		if (cart.lineItems.length === 0) {
+			return Astro.redirect("/shop/cart");
+		}
+		currency = cart.currency;
+		subtotalMinor = cart.subtotalMinor;
+		const visuals = await resolveCartLineVisuals(client, cart.lineItems);
+		summaryLines = cart.lineItems.map((item) => {
+			const vis = visuals.get(cartLineKey(item.productId, item.variantId));
+			return {
+				key: cartLineKey(item.productId, item.variantId),
+				title: vis?.title ?? item.productId,
+				subtitle: vis?.variantSubtitle ?? null,
+				quantity: item.quantity,
+				lineTotalMinor: item.lineTotalMinor,
+				imageSrc: vis?.imageSrc ?? null,
+				imageAlt: vis?.imageAlt ?? vis?.title ?? item.productId,
+			};
+		});
+		requiresShipping = cart.lineItems.some((item) => {
+			const vis = visuals.get(cartLineKey(item.productId, item.variantId));
+			return vis?.fulfillmentKind !== "digital";
+		});
+	}
+} catch (err) {
+	if (err instanceof PhaseOneCommerceError) {
+		fetchError = err.message;
+	} else {
+		fetchError = err instanceof Error ? err.message : "Failed to load checkout";
+	}
+}
+
+const bootstrap = {
+	commerceApiBase: `${Astro.url.origin}/_emdash/api/plugins/commerce`,
+	statusPath: "/shop/status",
+	currency,
+	cartId: cartId ?? "",
+	ownerToken: ownerToken ?? "",
+	requiresShipping,
+	lineItems: summaryLines,
+	orderId: resumeOrderId,
+	finalizeToken: resumeFinalizeToken,
+	initialSubtotalMinor: subtotalMinor,
+};
+---
+
+<Base title="Checkout">
+	<div class="container checkout-page">
+		{fetchError ? (
+			<div class="alert alert-error">{fetchError}</div>
+		) : (
+			<div class="checkout-layout">
+				<div class="checkout-main">
+					<div id="checkout-form-error" class="alert alert-error" hidden></div>
+
+					<section class="checkout-section" aria-labelledby="checkout-contact-heading">
+						<div class="checkout-section-header">
+							<h2 id="checkout-contact-heading">Contact information</h2>
+							<a href="/shop/my-account">Log in</a>
+						</div>
+						<p class="checkout-hint">You are checking out as a guest.</p>
+						<div class="checkout-field">
+							<label for="checkout-email">Email address</label>
+							<input
+								type="email"
+								id="checkout-email"
+								name="email"
+								autocomplete="email"
+								placeholder="you@example.com"
+								required
+							/>
+						</div>
+					</section>
+
+					<section class="checkout-section" aria-labelledby="checkout-shipping-heading">
+						<div class="checkout-section-header">
+							<h2 id="checkout-shipping-heading">
+								{requiresShipping ? "Shipping address" : "Customer address"}
+							</h2>
+						</div>
+						<div class="checkout-field">
+								<label for="checkout-country">Country / Region</label>
+								<select id="checkout-country" name="country" autocomplete="country">
+									<option value="US" selected>United States (US)</option>
+								</select>
+							</div>
+							<div class="checkout-field-row">
+								<div class="checkout-field">
+									<label for="checkout-first-name">First name</label>
+									<input
+										type="text"
+										id="checkout-first-name"
+										name="firstName"
+										autocomplete="given-name"
+										placeholder="First name"
+										required
+									/>
+								</div>
+								<div class="checkout-field">
+									<label for="checkout-last-name">Last name</label>
+									<input
+										type="text"
+										id="checkout-last-name"
+										name="lastName"
+										autocomplete="family-name"
+										placeholder="Last name"
+										required
+									/>
+								</div>
+							</div>
+							<div class="checkout-field">
+								<label for="checkout-address1">Address</label>
+								<input
+									type="text"
+									id="checkout-address1"
+									name="address1"
+									autocomplete="address-line1"
+									placeholder="Street address"
+									required
+								/>
+							</div>
+							<div class="checkout-field">
+								<label for="checkout-address2">Apartment, suite, etc. (optional)</label>
+								<input
+									type="text"
+									id="checkout-address2"
+									name="address2"
+									autocomplete="address-line2"
+									placeholder="Apartment, suite, unit, building, floor"
+								/>
+							</div>
+							<div class="checkout-field-row">
+								<div class="checkout-field">
+									<label for="checkout-city">City</label>
+									<input
+										type="text"
+										id="checkout-city"
+										name="city"
+										autocomplete="address-level2"
+										placeholder="City"
+										required
+									/>
+								</div>
+								<div class="checkout-field">
+									<label for="checkout-region">State</label>
+									<select id="checkout-region" name="region" autocomplete="address-level1" required>
+										<option value="">Select a state</option>
+										{US_REGIONS.map((region) => (
+											<option value={region.code}>{region.name}</option>
+										))}
+									</select>
+								</div>
+							</div>
+							<div class="checkout-field-row">
+								<div class="checkout-field">
+									<label for="checkout-postal">ZIP Code</label>
+									<input
+										type="text"
+										id="checkout-postal"
+										name="postalCode"
+										autocomplete="postal-code"
+										inputmode="numeric"
+										placeholder="ZIP Code"
+										required
+									/>
+								</div>
+								<div class="checkout-field">
+									<label for="checkout-phone">Phone number</label>
+									<input
+										type="tel"
+										id="checkout-phone"
+										name="phone"
+										autocomplete="tel"
+										placeholder="Phone number"
+										required
+									/>
+								</div>
+							</div>
+							<label class="checkout-checkbox">
+								<input id="checkout-billing-same" type="checkbox" name="billingSameAsShipping" checked />
+								Use same address for billing
+							</label>
+							<div id="checkout-billing-address" class="checkout-billing-address" hidden>
+								<h3>Billing address (optional)</h3>
+								<div class="checkout-field-row">
+									<div class="checkout-field">
+										<label for="checkout-billing-first-name">First name</label>
+										<input
+											type="text"
+											id="checkout-billing-first-name"
+											name="billingFirstName"
+											autocomplete="billing given-name"
+											placeholder="First name"
+										/>
+									</div>
+									<div class="checkout-field">
+										<label for="checkout-billing-last-name">Last name</label>
+										<input
+											type="text"
+											id="checkout-billing-last-name"
+											name="billingLastName"
+											autocomplete="billing family-name"
+											placeholder="Last name"
+										/>
+									</div>
+								</div>
+								<div class="checkout-field">
+									<label for="checkout-billing-address1">Address</label>
+									<input
+										type="text"
+										id="checkout-billing-address1"
+										name="billingAddress1"
+										autocomplete="billing address-line1"
+										placeholder="Street address"
+									/>
+								</div>
+								<div class="checkout-field">
+									<label for="checkout-billing-address2">Apartment, suite, etc. (optional)</label>
+									<input
+										type="text"
+										id="checkout-billing-address2"
+										name="billingAddress2"
+										autocomplete="billing address-line2"
+										placeholder="Apartment, suite, unit, building, floor"
+									/>
+								</div>
+								<div class="checkout-field-row">
+									<div class="checkout-field">
+										<label for="checkout-billing-city">City</label>
+										<input
+											type="text"
+											id="checkout-billing-city"
+											name="billingCity"
+											autocomplete="billing address-level2"
+											placeholder="City"
+										/>
+									</div>
+									<div class="checkout-field">
+										<label for="checkout-billing-region">State</label>
+										<select
+											id="checkout-billing-region"
+											name="billingRegion"
+											autocomplete="billing address-level1"
+										>
+											<option value="">Select a state</option>
+											{US_REGIONS.map((region) => (
+												<option value={region.code}>{region.name}</option>
+											))}
+										</select>
+									</div>
+								</div>
+								<div class="checkout-field-row">
+									<div class="checkout-field">
+										<label for="checkout-billing-postal">ZIP Code</label>
+										<input
+											type="text"
+											id="checkout-billing-postal"
+											name="billingPostalCode"
+											autocomplete="billing postal-code"
+											inputmode="numeric"
+											placeholder="ZIP Code"
+										/>
+									</div>
+									<div class="checkout-field">
+										<label for="checkout-billing-country">Country / Region</label>
+										<select id="checkout-billing-country" name="billingCountry" autocomplete="billing country">
+											<option value="US" selected>United States (US)</option>
+										</select>
+									</div>
+								</div>
+							</div>
+						</section>
+
+					<section class="checkout-section" aria-labelledby="checkout-shipping-options-heading">
+						<div class="checkout-section-header">
+							<h2 id="checkout-shipping-options-heading">Shipping options</h2>
+						</div>
+						<p id="checkout-shipping-placeholder" class="checkout-shipping-placeholder">
+							{requiresShipping
+								? "Enter contact, address, and phone details to view shipping options."
+								: "No shipping required for this order."}
+						</p>
+						<div id="checkout-shipping-options" hidden></div>
+					</section>
+
+					<section class="checkout-section" aria-labelledby="checkout-payment-heading">
+						<div class="checkout-section-header">
+							<h2 id="checkout-payment-heading">Payment</h2>
+						</div>
+						<div id="checkout-payment-section" class="checkout-payment-box" hidden>
+							<div id="stripe-payment-element"></div>
+						</div>
+						<p id="checkout-payment-hint" class="checkout-hint">
+							Complete your contact details, address, and phone number to load secure payment.
+						</p>
+						<div id="checkout-payment-error" class="alert alert-error" hidden></div>
+					</section>
+
+					<p class="checkout-legal">
+						By placing your order, you agree to our <a href="/shop">Terms and Conditions</a> and
+						<a href="/shop">Privacy Policy</a>.
+					</p>
+
+					<button
+						type="button"
+						id="checkout-place-order"
+						class="btn btn-primary checkout-place-order"
+						disabled
+					>
+						Place order · {formatPrice(subtotalMinor, currency)}
+					</button>
+
+					<a href="/shop/cart" class="checkout-back">← Return to cart</a>
+				</div>
+
+				<aside class="checkout-summary" aria-labelledby="checkout-summary-heading">
+					<h2 id="checkout-summary-heading">Order summary</h2>
+					<div class="checkout-summary-items">
+						{summaryLines.map((line) => (
+							<div class="checkout-summary-item">
+								<div class="checkout-summary-thumb-wrap">
+									{line.imageSrc ? (
+										<img
+											class="checkout-summary-thumb"
+											src={getMediaRenditionUrl(line.imageSrc, {
+												width: MEDIA_STORE_CART_WIDTH,
+												siteOrigin,
+											})}
+											alt={line.imageAlt}
+											loading="lazy"
+										/>
+									) : (
+										<div
+											class="checkout-summary-thumb checkout-summary-thumb--empty"
+											aria-hidden="true"
+										/>
+									)}
+									<span class="checkout-summary-qty" aria-label={`Quantity ${line.quantity}`}>
+										{line.quantity}
+									</span>
+								</div>
+								<div class="checkout-summary-item-text">
+									<div class="checkout-summary-item-title">{line.title}</div>
+									{line.subtitle && (
+										<div class="checkout-summary-item-variant">{line.subtitle}</div>
+									)}
+								</div>
+								<div class="checkout-summary-item-price">
+									{formatPrice(line.lineTotalMinor, currency)}
+								</div>
+							</div>
+						))}
+					</div>
+					<dl class="checkout-summary-totals">
+						<div>
+							<dt>Subtotal</dt>
+							<dd id="checkout-summary-subtotal">{formatPrice(subtotalMinor, currency)}</dd>
+						</div>
+						<div>
+							<dt>Delivery</dt>
+							<dd id="checkout-summary-shipping">
+								{requiresShipping ? "Enter address to calculate" : "—"}
+							</dd>
+						</div>
+						<div>
+							<dt>Tax</dt>
+							<dd id="checkout-summary-tax">Calculated at checkout</dd>
+						</div>
+						<div class="checkout-summary-totals-total">
+							<dt>Total</dt>
+							<dd id="checkout-summary-total">{formatPrice(subtotalMinor, currency)}</dd>
+						</div>
+					</dl>
+				</aside>
+			</div>
+		)}
+	</div>
+
+	{!fetchError && (
+		<>
+			<div id="checkout-root" data-bootstrap={JSON.stringify(bootstrap)} hidden />
+			<script>
+				import { initCheckoutPage } from "../../lib/commerce/checkout-page-client.ts";
+
+				const root = document.getElementById("checkout-root");
+				const raw = root?.getAttribute("data-bootstrap");
+				if (raw) {
+					initCheckoutPage(JSON.parse(raw));
+				}
+			</script>
+		</>
+	)}
+</Base>

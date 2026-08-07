@@ -1,0 +1,22 @@
+{
+	"extends": "astro/tsconfigs/strict",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"],
+			"@emdash-cms/plugin-dashing-commerce": [
+				"../../packages/plugins/dashing-commerce/src/index.ts"
+			],
+			"@emdash-cms/plugin-dashing-commerce/money": [
+				"../../packages/plugins/dashing-commerce/src/lib/money.ts"
+			],
+			"@emdash-cms/plugin-dashing-commerce/contracts/*": [
+				"../../packages/plugins/dashing-commerce/src/contracts/*"
+			],
+			"@emdash-cms/plugin-dashing-commerce/client/*": [
+				"../../packages/plugins/dashing-commerce/src/client/*"
+			]
+		}
+	},
+	"include": ["src"]
+}

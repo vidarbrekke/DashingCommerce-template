@@ -1,0 +1,34 @@
+---
+import type { Menu } from "emdash";
+
+interface Props {
+	menu: Menu | null;
+	currentPath: string;
+}
+
+const { menu, currentPath } = Astro.props;
+---
+
+<nav class="site-nav">
+	<div class="container">
+		<a href="/shop" class="brand">DashingCommerce</a>
+		<ul class="nav-links">
+			{menu?.items.map((item) => {
+				const href = item.url;
+				const isActive =
+					currentPath === href || (href !== "/shop" && currentPath.startsWith(href + "/"));
+				return (
+					<li>
+						<a href={href} class={isActive ? "active" : ""}>{item.label}</a>
+					</li>
+				);
+			})}
+			<li>
+				<a
+					href="/_emdash/admin/plugins/commerce/inventory"
+					class={currentPath.startsWith("/_emdash/admin/plugins/commerce") ? "active" : ""}
+				>Admin</a>
+			</li>
+		</ul>
+	</div>
+</nav>

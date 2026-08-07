@@ -1,0 +1,92 @@
+{
+	"products": [
+		{
+			"id": "prod_tshirt",
+			"type": "simple",
+			"status": "active",
+			"visibility": "public",
+			"slug": "t-shirt",
+			"title": "T-Shirt",
+			"shortDescription": "A comfortable cotton t-shirt.",
+			"longDescription": "A comfortable cotton t-shirt available in multiple sizes.",
+			"fulfillmentMode": "physical",
+			"featured": true,
+			"sortOrder": 10,
+			"bundleDiscountType": "none",
+			"createdAt": "2026-06-12T00:00:00.000Z",
+			"updatedAt": "2026-06-12T00:00:00.000Z",
+			"publishedAt": "2026-06-12T00:00:00.000Z"
+		},
+		{
+			"id": "prod_teddy",
+			"type": "simple",
+			"status": "active",
+			"visibility": "public",
+			"slug": "teddy-bear",
+			"title": "Teddy Bear",
+			"shortDescription": "A soft plush teddy bear.",
+			"longDescription": "A soft plush teddy bear, perfect for all ages.",
+			"fulfillmentMode": "physical",
+			"featured": true,
+			"sortOrder": 20,
+			"bundleDiscountType": "none",
+			"createdAt": "2026-06-12T00:00:00.000Z",
+			"updatedAt": "2026-06-12T00:00:00.000Z",
+			"publishedAt": "2026-06-12T00:00:00.000Z"
+		}
+	],
+	"productSkus": [
+		{
+			"id": "sku_tshirt",
+			"productId": "prod_tshirt",
+			"skuCode": "TSHIRT-001",
+			"status": "active",
+			"unitPriceMinor": 2500,
+			"inventoryQuantity": 100,
+			"inventoryVersion": 1,
+			"requiresShipping": true,
+			"isDigital": false,
+			"createdAt": "2026-06-12T00:00:00.000Z",
+			"updatedAt": "2026-06-12T00:00:00.000Z"
+		},
+		{
+			"id": "sku_teddy",
+			"productId": "prod_teddy",
+			"skuCode": "TEDDY-001",
+			"status": "active",
+			"unitPriceMinor": 3500,
+			"inventoryQuantity": 50,
+			"inventoryVersion": 1,
+			"requiresShipping": true,
+			"isDigital": false,
+			"createdAt": "2026-06-12T00:00:00.000Z",
+			"updatedAt": "2026-06-12T00:00:00.000Z"
+		}
+	],
+	"productAttributes": [],
+	"productAttributeValues": [],
+	"productSkuOptionValues": [],
+	"categories": [],
+	"productCategoryLinks": [],
+	"catalogTerms": [],
+	"productTagLinks": [],
+	"orders": [],
+	"inventoryStock": [
+		{
+			"id": "stock:prod_tshirt:",
+			"productId": "prod_tshirt",
+			"variantId": "",
+			"quantity": 100,
+			"version": 1,
+			"updatedAt": "2026-06-12T00:00:00.000Z"
+		},
+		{
+			"id": "stock:prod_teddy:",
+			"productId": "prod_teddy",
+			"variantId": "",
+			"quantity": 50,
+			"version": 1,
+			"updatedAt": "2026-06-12T00:00:00.000Z"
+		}
+	]
+}

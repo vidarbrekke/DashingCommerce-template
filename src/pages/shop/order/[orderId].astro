@@ -1,0 +1,252 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { buildClient } from "../../../lib/commerce/client";
+import {
+	formatPrice,
+	FINALIZE_TOKEN_PARAM,
+	formatCustomerOrderReference,
+} from "../../../lib/commerce/cart";
+import { checkoutLineItemDisplayName } from "../../../lib/commerce/checkout-line-item-display.ts";
+import { buildStatusHref } from "../../../lib/commerce/order-status.ts";
+import type {
+	CheckoutGetOrderResponseContract,
+	FinalizationStatusResponseContract,
+} from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+
+const orderId = Astro.params.orderId;
+if (orderId === undefined || orderId.length === 0) {
+	return Astro.redirect("/shop");
+}
+
+const finalizeToken = Astro.url.searchParams.get(FINALIZE_TOKEN_PARAM) ?? "";
+const orderReference = formatCustomerOrderReference(orderId);
+
+if (!finalizeToken) {
+	return Astro.redirect("/shop");
+}
+
+const client = buildClient(Astro.url.origin);
+
+let order: CheckoutGetOrderResponseContract | null = null;
+let fetchError: string | null = null;
+let status: FinalizationStatusResponseContract | null = null;
+let statusError: string | null = null;
+
+try {
+	order = await client.getOrder({ orderId, finalizeToken });
+} catch (err) {
+	if (err instanceof PhaseOneCommerceError) {
+		fetchError = err.message;
+	} else {
+		fetchError = err instanceof Error ? err.message : "Failed to load order";
+	}
+}
+
+const total = order?.order.totalMinor ?? 0;
+const currency = order?.order.currency ?? "USD";
+const statusHref = buildStatusHref(
+	orderId,
+	order?.order.paymentAttemptId,
+	order?.order.providerId,
+	finalizeToken,
+	order?.order.webhookExternalEventId,
+);
+
+const paymentAttemptCorrelation = order?.order.paymentAttemptId?.trim() ?? "";
+const webhookEventCorrelation = order?.order.webhookExternalEventId?.trim() ?? "";
+const finalizationExternalEventId = webhookEventCorrelation || paymentAttemptCorrelation;
+if (order?.order.providerId && finalizationExternalEventId.length > 0) {
+	const providerId = order.order.providerId.trim();
+	try {
+		status = await client.getFinalizationStatus({
+			orderId,
+			providerId,
+			externalEventId: finalizationExternalEventId,
+		});
+	} catch (err) {
+		if (err instanceof PhaseOneCommerceError && err.code === "rate_limited") {
+			statusError = "Status lookup is rate limited. Try again in a moment.";
+		} else {
+			statusError = err instanceof Error ? err.message : "Failed to load payment progression";
+		}
+	}
+}
+
+function statusBadgeClass(active: boolean): string {
+	return active ? "badge-green" : "badge-yellow";
+}
+
+function formatBooleanLabel(value: boolean): string {
+	return value ? "Yes" : "No";
+}
+
+function receiptStateLabel(state: FinalizationStatusResponseContract["receiptStatus"]): string {
+	return state === "processed" ? "Processed" : state === "pending" ? "Pending" : "Error";
+}
+
+function fulfillmentStatusLabel(
+	orderStatus: CheckoutGetOrderResponseContract["order"]["fulfillmentStatus"],
+): string {
+	if (orderStatus === "fulfilled") return "Fulfilled";
+	if (orderStatus === "partial") return "Partially fulfilled";
+	return "Unfulfilled";
+}
+
+function fulfillmentBadgeClass(
+	orderStatus: CheckoutGetOrderResponseContract["order"]["fulfillmentStatus"],
+): string {
+	if (orderStatus === "fulfilled") return "badge-green";
+	if (orderStatus === "partial") return "badge-yellow";
+	return "badge-yellow";
+}
+
+function badgeClassForResumeState(state: FinalizationStatusResponseContract["resumeState"]): string {
+	if (state === "error") return "badge-red";
+	if (state === "pending_inventory" || state === "pending_order" || state === "pending_attempt" || state === "pending_receipt") {
+		return "badge-yellow";
+	}
+	return "badge-green";
+}
+---
+
+<Base title="Order confirmation">
+	<div class="container">
+		<div class="page-header">
+			<h1>Order confirmation</h1>
+		</div>
+
+		{fetchError && <div class="alert alert-error">{fetchError}</div>}
+
+		{order && (
+			<div class="two-col">
+				<div class="card">
+					<div class="alert alert-success" style="margin-bottom:1.25rem;">
+						Your order has been placed successfully.
+					</div>
+
+					<div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.9rem; margin-bottom:1.25rem;">
+						<div><strong>Order reference:</strong> {orderReference}</div>
+						<div>
+							<strong>Order ID:</strong>{" "}
+							<code style="font-size:0.8rem; word-break:break-all;">{orderId}</code>
+						</div>
+						<div><strong>Payment:</strong> {order.order.paymentPhase}</div>
+						<div style="display:flex; align-items:center; gap:0.5rem;">
+							<strong>Fulfillment:</strong>
+							<span class={`badge ${fulfillmentBadgeClass(order.order.fulfillmentStatus)}`}>
+								{fulfillmentStatusLabel(order.order.fulfillmentStatus)}
+							</span>
+						</div>
+						<div><strong>Placed:</strong> {new Date(order.order.createdAt).toLocaleString()}</div>
+					</div>
+
+					{order.order.shipments.length > 0 && (
+						<div style="margin-bottom:1.25rem;">
+							<h2 style="font-size:0.95rem; font-weight:700; margin-bottom:0.5rem;">Tracking</h2>
+							<ul style="margin:0; padding-inline-start:1.25rem; font-size:0.9rem;">
+								{order.order.shipments.map((shipment) => (
+									<li>
+										<strong>{shipment.trackingNumber}</strong>
+										{shipment.carrier && <span> — {shipment.carrier}</span>}
+										<span style="color:var(--color-muted);">
+											{" "}
+											(shipped {new Date(shipment.shippedAt).toLocaleString()})
+										</span>
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+
+					<h2 style="font-size:0.95rem; font-weight:700; margin-bottom:0.75rem;">Items</h2>
+					<table class="cart-table">
+						<thead>
+							<tr>
+								<th>Product</th>
+								<th>Qty</th>
+								<th>Price</th>
+							</tr>
+						</thead>
+						<tbody>
+							{order.order.lineItems.map((item) => {
+								const displayName = checkoutLineItemDisplayName(item);
+								return (
+									<tr>
+										<td style="font-size:0.85rem; color:var(--color-muted);">{displayName}</td>
+										<td>{item.quantity}</td>
+										<td>{formatPrice(item.unitPriceMinor * item.quantity, currency)}</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+					<div class="cart-total">{formatPrice(total, currency)}</div>
+				</div>
+
+				<div>
+					<div class="card" style="margin-bottom:1rem;">
+						<h2 style="font-size:0.95rem; font-weight:700; margin-bottom:0.75rem;">Payment status</h2>
+						<p style="font-size:0.875rem; color:var(--color-muted); margin-bottom:1rem;">
+							Check current payment and finalization state for this order.
+						</p>
+						<a
+							href={statusHref}
+							class="btn btn-secondary"
+							style="width:100%; justify-content:center;"
+						>
+							View payment status
+						</a>
+						{status ? (
+							<div style="margin-top:1rem; display:grid; gap:0.55rem; font-size:0.86rem;">
+								<div style="display:flex; justify-content:space-between; align-items:center;">
+									<span>Payment confirmed</span>
+									<span class={`badge ${statusBadgeClass(status.isOrderPaid)}`}>{formatBooleanLabel(status.isOrderPaid)}</span>
+								</div>
+								<div style="display:flex; justify-content:space-between; align-items:center;">
+									<span>Inventory applied</span>
+									<span class={`badge ${statusBadgeClass(status.isInventoryApplied)}`}>{formatBooleanLabel(status.isInventoryApplied)}</span>
+								</div>
+								<div style="display:flex; justify-content:space-between; align-items:center;">
+									<span>Payment attempt</span>
+									<span class={`badge ${statusBadgeClass(status.isPaymentAttemptSucceeded)}`}>{formatBooleanLabel(status.isPaymentAttemptSucceeded)}</span>
+								</div>
+								<div style="display:flex; justify-content:space-between; align-items:center;">
+									<span>Receipt</span>
+									<span class={`badge ${status.isReceiptProcessed ? "badge-green" : "badge-yellow"}`}>
+										{receiptStateLabel(status.receiptStatus)}
+									</span>
+								</div>
+								<div style="display:flex; justify-content:space-between; align-items:center;">
+									<span>Resume state</span>
+									<span class={`badge ${badgeClassForResumeState(status.resumeState)}`}>{status.resumeState}</span>
+								</div>
+								{status.receiptErrorCode && (
+									<div style="display:flex; justify-content:space-between; align-items:center;">
+										<span>Receipt code</span>
+										<span class="badge badge-red">{status.receiptErrorCode}</span>
+									</div>
+								)}
+							</div>
+						) : (
+							<div style="margin-top:1rem; font-size:0.82rem; color:var(--color-muted);">
+								{statusError ?? "Progression is checked live from payment provider state."}
+							</div>
+						)}
+					</div>
+
+					<a href="/shop" class="btn btn-primary" style="width:100%; justify-content:center;">
+						Continue shopping
+					</a>
+				</div>
+			</div>
+		)}
+
+		{!order && !fetchError && (
+			<div class="empty-state">
+				<h2>Order not found</h2>
+				<a href="/shop" class="btn btn-secondary" style="margin-top:1rem;">Back to shop</a>
+			</div>
+		)}
+	</div>
+</Base>

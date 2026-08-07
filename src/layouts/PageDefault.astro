@@ -1,0 +1,51 @@
+---
+import Base from "./Base.astro";
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<Base title={title}>
+	<article class="cms-page container">
+		<slot />
+	</article>
+</Base>
+
+<style>
+	.cms-page {
+		padding: 2rem 0 3rem;
+		max-width: 42rem;
+	}
+
+	.cms-page :global(h1) {
+		font-size: 1.75rem;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+		margin-bottom: 1.25rem;
+	}
+
+	.cms-page :global(p) {
+		margin-bottom: 1rem;
+		color: var(--color-text);
+	}
+
+	.cms-page :global(h2) {
+		font-size: 1.25rem;
+		font-weight: 600;
+		margin-top: 1.75rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.cms-page :global(ul),
+	.cms-page :global(ol) {
+		margin-bottom: 1rem;
+		padding-inline-start: 1.25rem;
+	}
+
+	.cms-page :global(li) {
+		margin-bottom: 0.35rem;
+	}
+</style>

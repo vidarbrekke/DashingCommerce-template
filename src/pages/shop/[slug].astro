@@ -1,0 +1,34 @@
+---
+import Base from "../../layouts/Base.astro";
+import { loadProductDetailPage, isProductDetailView } from "../../lib/commerce/product-detail-page";
+import { getProductLayout } from "../../lib/commerce/product-layout-registry";
+import { resolveProductLayoutId } from "../../lib/commerce/storefront-appearance";
+
+const slug = Astro.params.slug;
+if (slug === undefined || slug.length === 0) {
+	return Astro.redirect("/shop");
+}
+
+const pageResult = await loadProductDetailPage(Astro.request, slug, Astro.url.origin);
+if (pageResult instanceof Response) {
+	return pageResult;
+}
+
+const layoutId = resolveProductLayoutId();
+const ProductLayout = getProductLayout(layoutId);
+const pageTitle =
+	pageResult.detail?.product.title ?? (pageResult.fetchError ? "Product" : "Product");
+---
+
+<Base title={pageTitle}>
+	<div class="container">
+		{pageResult.fetchError && (
+			<div style="padding: 3rem 0;">
+				<div class="alert alert-error">{pageResult.fetchError}</div>
+				<a href="/shop" class="btn btn-secondary">← Back to shop</a>
+			</div>
+		)}
+
+		{isProductDetailView(pageResult) && <ProductLayout view={pageResult} />}
+	</div>
+</Base>

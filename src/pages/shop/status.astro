@@ -1,0 +1,203 @@
+---
+/**
+ * /shop/status — post-payment finalization status page.
+ *
+ * Polls payment/finalization/status. Uses meta-refresh for auto-reload
+ * so no client-side JS is required. Rate-limited by the backend (10s cache).
+ */
+import Base from "../../layouts/Base.astro";
+import { buildClient } from "../../lib/commerce/client";
+import { formatCustomerOrderReference } from "../../lib/commerce/cart";
+import type { FinalizationStatusResponseContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+
+const orderId = Astro.url.searchParams.get("orderId")?.trim() ?? "";
+const paymentAttemptId = Astro.url.searchParams.get("paymentAttemptId")?.trim() ?? "";
+const externalEventIdParam = Astro.url.searchParams.get("externalEventId")?.trim() ?? "";
+const providerId = Astro.url.searchParams.get("providerId")?.trim() ?? "";
+const finalizeToken = Astro.url.searchParams.get("finalizeToken")?.trim() ?? "";
+
+/** Prefer gateway webhook event id (`evt_*`) when present so receipt lookup matches storage. */
+const externalEventId = externalEventIdParam || paymentAttemptId;
+const orderReference = orderId ? formatCustomerOrderReference(orderId) : "";
+
+if (!orderId) {
+	return Astro.redirect("/shop");
+}
+
+const client = buildClient(Astro.url.origin);
+
+let fetchError: string | null = null;
+let rateLimited = false;
+let status: FinalizationStatusResponseContract | null = null;
+let statusProviderId = providerId;
+
+if (!statusProviderId && finalizeToken) {
+	try {
+		const orderStatusOrder = await client.getOrder({
+			orderId,
+			finalizeToken,
+		});
+		const resolvedProviderId =
+			typeof orderStatusOrder.order.providerId === "string"
+				? orderStatusOrder.order.providerId.trim()
+				: "";
+		if (resolvedProviderId.length > 0) {
+			statusProviderId = resolvedProviderId;
+		}
+	} catch (err) {
+		if (err instanceof PhaseOneCommerceError) {
+			fetchError = err.message;
+		} else {
+			fetchError = err instanceof Error ? err.message : "Failed to load status";
+		}
+	}
+}
+
+try {
+	if (!statusProviderId) {
+		if (!fetchError) {
+			fetchError = "Missing providerId. Open your order confirmation and retry.";
+		}
+	} else if (!externalEventId) {
+		if (!fetchError) {
+			fetchError =
+				"Missing paymentAttemptId. Open order confirmation link (includes correlation), or retry checkout.";
+		}
+	} else {
+		status = await client.getFinalizationStatus({
+			orderId,
+			providerId: statusProviderId,
+			externalEventId,
+		});
+	}
+} catch (err) {
+	if (err instanceof PhaseOneCommerceError && err.code === "rate_limited") {
+		rateLimited = true;
+	} else {
+		fetchError = err instanceof Error ? err.message : "Failed to load status";
+	}
+}
+
+// Auto-refresh if still pending
+const isPending =
+	!status?.isOrderPaid &&
+	(status?.resumeState === "not_started" ||
+		status?.resumeState === "pending_inventory" ||
+		status?.resumeState === "pending_order" ||
+		status?.resumeState === "pending_attempt" ||
+		status?.resumeState === "pending_receipt");
+
+const refreshSeconds = 12; // slightly above the 10s backend cache TTL
+
+function badgeClass(state: string): string {
+	if (state === "replay_processed" || state === "not_started") return "badge-gray";
+	if (state.startsWith("pending_")) return "badge-yellow";
+	if (state === "error") return "badge-red";
+	return "badge-green";
+}
+---
+
+<Base title="Payment status">
+	{isPending && (
+		<meta http-equiv="refresh" content={`${refreshSeconds};url=${Astro.url.toString()}`} slot="head" />
+	)}
+
+	<div class="container">
+		<div class="page-header">
+			<h1>Payment status</h1>
+			<p>Order reference <strong>{orderReference}</strong></p>
+			<p class="order-id-support">
+				Order ID <code>{orderId}</code>
+			</p>
+		</div>
+
+		{rateLimited && (
+			<div class="alert alert-info">
+				Status is being refreshed. Please wait a moment and reload.
+			</div>
+		)}
+
+		{fetchError && <div class="alert alert-error">{fetchError}</div>}
+
+		{status && (
+			<div class="two-col">
+				<div class="card">
+					<h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem;">Finalization state</h2>
+
+					<div style="display:grid; gap:0.75rem; font-size:0.9rem;">
+						<div style="display:flex; justify-content:space-between; align-items:center;">
+							<span>Order paid</span>
+							<span class={`badge ${status.isOrderPaid ? "badge-green" : "badge-yellow"}`}>
+								{status.isOrderPaid ? "Yes" : "Pending"}
+							</span>
+						</div>
+						<div style="display:flex; justify-content:space-between; align-items:center;">
+							<span>Inventory applied</span>
+							<span class={`badge ${status.isInventoryApplied ? "badge-green" : "badge-yellow"}`}>
+								{status.isInventoryApplied ? "Yes" : "Pending"}
+							</span>
+						</div>
+						<div style="display:flex; justify-content:space-between; align-items:center;">
+							<span>Payment attempt</span>
+							<span class={`badge ${status.isPaymentAttemptSucceeded ? "badge-green" : "badge-yellow"}`}>
+								{status.isPaymentAttemptSucceeded ? "Succeeded" : "Pending"}
+							</span>
+						</div>
+						<div style="display:flex; justify-content:space-between; align-items:center;">
+							<span>Receipt</span>
+							<span class={`badge ${status.isReceiptProcessed ? "badge-green" : "badge-yellow"}`}>
+								{status.receiptStatus}
+							</span>
+						</div>
+						<div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--color-border); padding-top:0.75rem;">
+							<span>Resume state</span>
+							<span class={`badge ${badgeClass(status.resumeState)}`}>
+								{status.resumeState}
+							</span>
+						</div>
+						{status.receiptErrorCode && (
+							<div style="display:flex; justify-content:space-between; align-items:center;">
+								<span>Error code</span>
+								<span class="badge badge-red">{status.receiptErrorCode}</span>
+							</div>
+						)}
+					</div>
+
+					{isPending && (
+						<div class="alert alert-info" style="margin-top:1.25rem;">
+							Waiting for payment confirmation… page refreshes automatically.
+						</div>
+					)}
+
+					{status.isOrderPaid && (
+						<div class="alert alert-success" style="margin-top:1.25rem;">
+							Payment confirmed. Your order is complete.
+						</div>
+					)}
+
+					{status.resumeState === "error" && (
+						<div class="alert alert-error" style="margin-top:1.25rem;">
+							Finalization encountered an error. Please contact support with your order ID.
+						</div>
+					)}
+				</div>
+
+				<div>
+					<div style="display:flex; flex-direction:column; gap:0.75rem;">
+						<a
+							href={Astro.url.toString()}
+							class="btn btn-secondary"
+							style="justify-content:center;"
+						>
+							Refresh status
+						</a>
+						<a href="/shop" class="btn btn-primary" style="justify-content:center;">
+							Back to shop
+						</a>
+					</div>
+				</div>
+			</div>
+		)}
+	</div>
+</Base>

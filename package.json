@@ -1,0 +1,44 @@
+{
+	"name": "dashing-commerce-storefront",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"description": "Starter Astro site for DashingCommerce on EmDash (Node + Cloudflare). See INSTALL.md.",
+	"emdash": {
+		"seed": "seed/seed.json"
+	},
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"build:cf": "astro build --config astro.cloudflare.mjs",
+		"preview:cf": "wrangler dev",
+		"deploy:cf": "astro build --config astro.cloudflare.mjs && wrangler deploy",
+		"typecheck:cf": "astro check --config astro.cloudflare.mjs",
+		"preview": "astro preview",
+		"start": "node ./dist/server/entry.mjs",
+		"seed:commerce": "node ./scripts/seed-commerce-plugin-storage.mjs",
+		"bootstrap": "emdash init && emdash seed && node ./scripts/seed-commerce-plugin-storage.mjs",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/cloudflare": "^12.6.0",
+		"@astrojs/node": "^9.4.0",
+		"@astrojs/react": "^4.3.0",
+		"@emdash-cms/cloudflare": "^0.31.1",
+		"@emdash-cms/plugin-dashing-commerce": "github:vidarbrekke/DashingCommerce-for-EmDash#path:packages/plugins/dashing-commerce",
+		"astro": "^5.13.0",
+		"better-sqlite3": "^11.0.0",
+		"emdash": "^0.31.1",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.0",
+		"@cloudflare/workers-types": "^4.0.0",
+		"typescript": "^5.9.0",
+		"wrangler": "^4.0.0"
+	},
+	"engines": {
+		"node": ">=22"
+	}
+}

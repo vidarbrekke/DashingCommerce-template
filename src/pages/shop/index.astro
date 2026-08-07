@@ -1,0 +1,156 @@
+---
+import Base from "../../layouts/Base.astro";
+import ProductCatalogMeta from "../../components/ProductCatalogMeta.astro";
+import { buildClient } from "../../lib/commerce/client";
+import { formatPrice } from "../../lib/commerce/cart";
+import { resolveShopFilterLabels } from "../../lib/commerce/shop-filters";
+import type { StorefrontProductListResponseContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
+import {
+	MEDIA_STORE_CARD_WIDTH,
+	getMediaRenditionUrl,
+} from "@emdash-cms/plugin-dashing-commerce/media-rendition";
+
+const client = buildClient(Astro.url.origin);
+const siteOrigin = Astro.url.origin;
+
+const brandFilter = Astro.url.searchParams.get("brand")?.trim() ?? "";
+const categoryFilter = Astro.url.searchParams.get("category")?.trim() ?? "";
+const tagFilter = Astro.url.searchParams.get("tag")?.trim() ?? "";
+
+let result: StorefrontProductListResponseContract | null = null;
+let error: string | null = null;
+let filterLabels = { brandName: null as string | null, categoryName: null as string | null, tagName: null as string | null };
+
+try {
+	const [listResult, labels] = await Promise.all([
+		client.listProducts({
+			limit: 48,
+			...(brandFilter ? { brandId: brandFilter } : {}),
+			...(categoryFilter ? { categoryId: categoryFilter } : {}),
+			...(tagFilter ? { tagId: tagFilter } : {}),
+		}),
+		resolveShopFilterLabels(Astro.url.origin, {
+			brandId: brandFilter || undefined,
+			categoryId: categoryFilter || undefined,
+			tagId: tagFilter || undefined,
+		}),
+	]);
+	result = listResult;
+	filterLabels = labels;
+} catch (err) {
+	error = err instanceof Error ? err.message : "Failed to load products";
+}
+
+const activeFilterLabel =
+	filterLabels.brandName ?? filterLabels.categoryName ?? filterLabels.tagName ?? (brandFilter || categoryFilter || tagFilter ? "Filter" : null);
+const hasActiveFilter = Boolean(brandFilter || categoryFilter || tagFilter);
+
+function filterUrl(exclude: "brand" | "category" | "tag"): string {
+	const params: Record<string, string> = {};
+	if (exclude !== "brand" && brandFilter) params.brand = brandFilter;
+	if (exclude !== "category" && categoryFilter) params.category = categoryFilter;
+	if (exclude !== "tag" && tagFilter) params.tag = tagFilter;
+	const qs = new URLSearchParams(params).toString();
+	return qs ? `/shop?${qs}` : "/shop";
+}
+---
+
+<Base title="Shop">
+	<div class="container">
+		<div class="page-header">
+			<h1>Shop</h1>
+			{result && (
+				<p>
+					{result.items.length} product{result.items.length !== 1 ? "s" : ""}
+					{hasActiveFilter && activeFilterLabel ? ` in ${activeFilterLabel}` : ""}
+				</p>
+			)}
+		</div>
+
+		{hasActiveFilter && (
+			<div class="shop-active-filters">
+				{brandFilter && (
+					<span class="shop-filter-chip">
+						Brand: {filterLabels.brandName ?? brandFilter}
+						<a href={filterUrl("brand")} class="shop-filter-clear" aria-label="Clear brand filter">×</a>
+					</span>
+				)}
+				{categoryFilter && (
+					<span class="shop-filter-chip">
+						Category: {filterLabels.categoryName ?? categoryFilter}
+						<a href={filterUrl("category")} class="shop-filter-clear" aria-label="Clear category filter">×</a>
+					</span>
+				)}
+				{tagFilter && (
+					<span class="shop-filter-chip">
+						Tag: {filterLabels.tagName ?? tagFilter}
+						<a href={filterUrl("tag")} class="shop-filter-clear" aria-label="Clear tag filter">×</a>
+					</span>
+				)}
+				<a href="/shop" class="shop-filter-reset">Clear all</a>
+			</div>
+		)}
+
+		{error && <div class="alert alert-error">{error}</div>}
+
+		{result && result.items.length === 0 && (
+			<div class="empty-state">
+				<h2>{hasActiveFilter ? "No matching products" : "No products yet"}</h2>
+				<p>
+					{hasActiveFilter
+						? "Try another brand, category, or tag, or browse the full catalog."
+						: "Add products via the EmDash admin panel."}
+				</p>
+				{hasActiveFilter && <a href="/shop" class="btn btn-secondary">View all products</a>}
+			</div>
+		)}
+
+		{result && result.items.length > 0 && (
+			<div class="product-grid">
+			{result.items.map(({ product, priceRange, availabilityBadge, primaryImage, brand, categories, tags }) => {
+				const minPrice = priceRange.minUnitPriceMinor;
+				const maxPrice = priceRange.maxUnitPriceMinor;
+				const priceLabel =
+					minPrice !== undefined && maxPrice !== undefined && minPrice !== maxPrice
+						? `${formatPrice(minPrice)} – ${formatPrice(maxPrice)}`
+						: minPrice !== undefined
+						? formatPrice(minPrice)
+						: "—";
+
+				return (
+					<article class="product-card">
+						<a href={`/shop/${product.slug}`} class="product-card-img">
+							{primaryImage ? (
+								<img
+									src={getMediaRenditionUrl(primaryImage.externalAssetId, {
+										width: MEDIA_STORE_CARD_WIDTH,
+										siteOrigin,
+									})}
+									alt={primaryImage.altText ?? product.title}
+									loading="lazy"
+								/>
+							) : (
+							<img
+								src="/no-image.svg"
+								alt="No image available"
+								style="width: 90%; height: 90%; object-fit: contain;"
+							/>
+							)}
+						</a>
+						<div class="product-card-body">
+							<a href={`/shop/${product.slug}`} class="product-card-title">{product.title}</a>
+							<ProductCatalogMeta brand={brand} categories={categories} tags={tags} />
+							<div class="product-card-price">{priceLabel}</div>
+							{availabilityBadge && (
+								<div class={`product-card-avail tone-${availabilityBadge.tone}`}>
+									{availabilityBadge.label}
+								</div>
+							)}
+						</div>
+					</article>
+				);
+			})}
+			</div>
+		)}
+	</div>
+</Base>
