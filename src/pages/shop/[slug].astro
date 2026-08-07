@@ -1,8 +1,8 @@
 ---
 import Base from "../../layouts/Base.astro";
+import ProductLayout from "../../components/commerce/ProductLayout.astro";
 import { loadProductDetailPage, isProductDetailView } from "../../lib/commerce/product-detail-page";
-import { getProductLayout } from "../../lib/commerce/product-layout-registry";
-import { resolveProductLayoutId } from "../../lib/commerce/storefront-appearance";
+import { resolveStorefrontAppearance } from "../../lib/commerce/storefront-appearance";
 
 const slug = Astro.params.slug;
 if (slug === undefined || slug.length === 0) {
@@ -14,13 +14,12 @@ if (pageResult instanceof Response) {
 	return pageResult;
 }
 
-const layoutId = resolveProductLayoutId();
-const ProductLayout = getProductLayout(layoutId);
+const appearance = await resolveStorefrontAppearance();
 const pageTitle =
 	pageResult.detail?.product.title ?? (pageResult.fetchError ? "Product" : "Product");
 ---
 
-<Base title={pageTitle}>
+<Base title={pageTitle} skin={appearance.storefrontSkin}>
 	<div class="container">
 		{pageResult.fetchError && (
 			<div style="padding: 3rem 0;">
@@ -29,6 +28,8 @@ const pageTitle =
 			</div>
 		)}
 
-		{isProductDetailView(pageResult) && <ProductLayout view={pageResult} />}
+		{isProductDetailView(pageResult) && (
+			<ProductLayout view={pageResult} layoutId={appearance.productLayout} />
+		)}
 	</div>
 </Base>

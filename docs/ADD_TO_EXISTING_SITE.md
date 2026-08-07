@@ -107,14 +107,13 @@ Copy these from `demos/storefront` (or the template) into your site, then **adap
 | From template | Purpose |
 | ------------- | ------- |
 | `src/components/ProductCatalogMeta.astro` | Brand/category chips |
-| `src/components/commerce/ProductLayoutClassic.astro` | PDP layout |
-| `src/lib/commerce/product-layout-registry.ts` | Layout swap registry |
-| `src/lib/commerce/storefront-appearance.ts` | Active layout id |
+| `src/components/commerce/ProductLayout.astro` | PDP layout (`classic` / `stacked` via `layoutId`) |
+| `src/lib/commerce/storefront-appearance.ts` | Layout + skin (plugin settings + env) |
 | `src/lib/commerce/product-detail-page.ts` | PDP data + cart POST |
 | `src/pages/pages/[slug].astro` | CMS pages (if you don’t already have one) |
 | `src/layouts/PageDefault.astro` | CMS page chrome matching shop tokens |
 | `public/no-image.svg` | Placeholder image |
-| `public/styles/global.css` **or** merge tokens into your CSS | Shared `.btn`, `.container`, product grid |
+| `src/styles/global.css` | Shared `.btn`, `.container`, product grid, skins |
 
 ### Optional but recommended
 

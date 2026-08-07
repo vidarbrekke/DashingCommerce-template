@@ -2,12 +2,15 @@
 import ProductCatalogMeta from "../ProductCatalogMeta.astro";
 import { formatPrice } from "../../lib/commerce/cart";
 import type { ProductDetailView } from "../../lib/commerce/product-detail-page";
+import type { ProductLayoutId } from "../../lib/commerce/storefront-appearance";
 
 interface Props {
 	view: ProductDetailView;
+	layoutId?: ProductLayoutId;
 }
 
-const { view } = Astro.props;
+const { view, layoutId = "classic" } = Astro.props;
+const layoutClass = layoutId === "stacked" ? "product-layout-stacked" : "two-col";
 const {
 	detail,
 	cartError,
@@ -39,7 +42,7 @@ const {
 <div style="padding: 2rem 0 3rem;">
 	<a href="/shop" style="font-size:0.875rem; color:var(--color-muted);">← Back to shop</a>
 
-	<div class="product-layout-stacked" style="margin-top:1.5rem;">
+	<div class={layoutClass} style="margin-top:1.5rem;">
 		<div>
 			<div style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius); aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; color:var(--color-muted); font-size:0.9rem; overflow:hidden;">
 				{heroDisplayUrl ? (
@@ -349,7 +352,6 @@ skuSelect?.addEventListener("change", () => {
 		gap: 1.5rem;
 		max-width: 40rem;
 	}
-
 
 	.variant-picker select {
 		width: 100%;

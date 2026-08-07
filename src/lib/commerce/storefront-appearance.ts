@@ -1,25 +1,51 @@
-/** Registered product layout ids (add variants in product-layout-registry.ts). */
-export type ProductLayoutId = "classic" | "stacked";
+import { getPluginSettings } from "emdash";
 
-/**
- * Active product page layout.
- * Priority: STOREFRONT_PRODUCT_LAYOUT env → classic.
- * Template sites can later read plugin settings.productLayout via a storefront config route.
- */
-export function resolveProductLayoutId(): ProductLayoutId {
-	const fromEnv = import.meta.env.STOREFRONT_PRODUCT_LAYOUT;
-	if (fromEnv === "stacked" || fromEnv === "classic") {
-		return fromEnv;
-	}
-	return "classic";
-}
+/** Registered product layout ids. */
+export type ProductLayoutId = "classic" | "stacked";
 
 export type StorefrontSkinId = "default" | "warm" | "contrast";
 
-export function resolveStorefrontSkinId(): StorefrontSkinId {
-	const fromEnv = import.meta.env.STOREFRONT_SKIN;
-	if (fromEnv === "warm" || fromEnv === "contrast" || fromEnv === "default") {
-		return fromEnv;
+export type StorefrontAppearance = {
+	productLayout: ProductLayoutId;
+	storefrontSkin: StorefrontSkinId;
+};
+
+function asProductLayoutId(value: unknown): ProductLayoutId | null {
+	return value === "stacked" || value === "classic" ? value : null;
+}
+
+function asStorefrontSkinId(value: unknown): StorefrontSkinId | null {
+	return value === "warm" || value === "contrast" || value === "default" ? value : null;
+}
+
+/**
+ * Resolve layout + skin.
+ * Priority: env override → plugin settings (`commerce`) → defaults.
+ */
+export async function resolveStorefrontAppearance(): Promise<StorefrontAppearance> {
+	const envLayout = asProductLayoutId(import.meta.env.STOREFRONT_PRODUCT_LAYOUT);
+	const envSkin = asStorefrontSkinId(import.meta.env.STOREFRONT_SKIN);
+
+	let settingsLayout: ProductLayoutId | null = null;
+	let settingsSkin: StorefrontSkinId | null = null;
+	try {
+		const settings = await getPluginSettings("commerce");
+		settingsLayout = asProductLayoutId(settings.productLayout);
+		settingsSkin = asStorefrontSkinId(settings.storefrontSkin);
+	} catch {
+		// Settings unavailable during early boot / non-EmDash contexts.
 	}
-	return "default";
+
+	return {
+		productLayout: envLayout ?? settingsLayout ?? "classic",
+		storefrontSkin: envSkin ?? settingsSkin ?? "default",
+	};
+}
+
+export async function resolveProductLayoutId(): Promise<ProductLayoutId> {
+	return (await resolveStorefrontAppearance()).productLayout;
+}
+
+export async function resolveStorefrontSkinId(): Promise<StorefrontSkinId> {
+	return (await resolveStorefrontAppearance()).storefrontSkin;
 }

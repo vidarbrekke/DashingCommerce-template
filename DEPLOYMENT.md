@@ -96,12 +96,11 @@ Set **`EMDASH_SITE_URL`** (and any secrets) as [Worker vars / secrets](https://d
 
 ### 3.5 Database migrations and seed
 
-Workers use **D1**, not the demo’s local `data.db`. After first deploy:
+Workers use **D1**, not the demo’s local `data.db`.
 
-- Run EmDash **migrations** against the remote D1 database (same schema as core; use `wrangler d1 execute` with SQL from migrations, or your org’s migration pipeline).
-- Run **`emdash`** CLI / setup flows pointed at the remote instance **or** restore a backup — match whatever your EmDash version documents for D1.
-
-Then seed content and **commerce plugin storage** (e.g. `pnpm seed:commerce` if wired to the same API/DB in your environment).
+- **Migrations and CMS seed** run automatically on first Worker request (EmDash boot). No manual `wrangler d1 execute` is required for the core schema when using the starter Worker entry.
+- **Cron:** `wrangler.jsonc` includes `triggers.crons` and `src/worker.ts` exports `@emdash-cms/cloudflare/worker` so scheduled publishing and plugin cron run.
+- **Commerce catalog fixtures:** `pnpm seed:commerce` targets local SQLite (`data.db`) only. For remote D1, create products in admin or adapt the seed script to your D1 workflow — do not assume the local script writes to production.
 
 ### 3.6 Commerce + payments on Workers
 

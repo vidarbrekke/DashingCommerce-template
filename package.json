@@ -21,12 +21,12 @@
 		"typecheck": "astro check"
 	},
 	"dependencies": {
-		"@astrojs/cloudflare": "^12.6.0",
-		"@astrojs/node": "^9.4.0",
-		"@astrojs/react": "^4.3.0",
+		"@astrojs/cloudflare": "^14.0.0",
+		"@astrojs/node": "^11.0.0",
+		"@astrojs/react": "^6.0.0",
 		"@emdash-cms/cloudflare": "^0.31.1",
 		"@emdash-cms/plugin-dashing-commerce": "github:vidarbrekke/DashingCommerce-for-EmDash#path:packages/plugins/dashing-commerce",
-		"astro": "^5.13.0",
+		"astro": "^6.0.1",
 		"better-sqlite3": "^11.0.0",
 		"emdash": "^0.31.1",
 		"react": "^19.0.0",
