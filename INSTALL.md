@@ -45,7 +45,7 @@ cd my-shop
 
 ```bash
 pnpm add ../DashingCommerce-for-EmDash/packages/plugins/dashing-commerce
-pnpm add emdash@^0.31.1 @emdash-cms/cloudflare@^0.31.1
+pnpm add emdash@^0.32.0 @emdash-cms/cloudflare@^0.32.0
 ```
 
 If install fails on `workspace:` peers, use **Path A** until the plugin is published to npm. After publish, `package.json` will use `@emdash-cms/plugin-dashing-commerce` from the registry and Path B becomes one-command.

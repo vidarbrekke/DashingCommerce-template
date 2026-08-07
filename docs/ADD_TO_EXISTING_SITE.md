@@ -10,7 +10,7 @@ Use this when you already have an EmDash Astro project (blog, marketing, custom 
 
 ## Prerequisites
 
-- EmDash **≥ 0.31.1** (SSR / `output: "server"`)
+- EmDash **≥ 0.32.0** (SSR / `output: "server"`)
 - Ability to register a **native** plugin (`format: "native"`)
 - Node **≥ 22** (or Cloudflare Workers for CF deploy)
 - Until npm publish: a local clone of [DashingCommerce-for-EmDash](https://github.com/vidarbrekke/DashingCommerce-for-EmDash)
