@@ -7,14 +7,14 @@ import { getPluginSetting } from "emdash";
 import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
 
 import Base from "../../layouts/Base.astro";
-import { buildShopClient } from "../../lib/commerce/client";
+import { buildShopClientFromAstro } from "../../lib/commerce/client";
 import {
 	ORDER_ID_PARAM,
 	FINALIZE_TOKEN_PARAM,
 	formatCustomerOrderReference,
 } from "../../lib/commerce/cart";
 
-const client = buildShopClient(Astro.url.origin, Astro.request.url, Astro.locals);
+const client = buildShopClientFromAstro(Astro);
 
 const orderIdVal = Astro.url.searchParams.get(ORDER_ID_PARAM)?.trim() ?? "";
 const finalizeTokenVal = Astro.url.searchParams.get(FINALIZE_TOKEN_PARAM)?.trim() ?? "";

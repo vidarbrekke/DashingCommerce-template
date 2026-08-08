@@ -1,6 +1,6 @@
 import { formatPrice, newIdempotencyKey } from "./cart.ts";
 import { orderNeedsShipping, orderNeedsTax, type CheckoutOrder } from "./checkout-order-helpers.ts";
-import { postCommerce } from "./commerce-fetch.ts";
+import { buildClient } from "./client.ts";
 import { buildStatusHref } from "./order-status.ts";
 
 export type CheckoutSummaryLine = {
@@ -14,7 +14,6 @@ export type CheckoutSummaryLine = {
 };
 
 export type CheckoutBootstrap = {
-	commerceApiBase: string;
 	statusPath: string;
 	currency: string;
 	cartId: string;
@@ -77,7 +76,7 @@ function isBankIncentivePaymentMethod(type: string | undefined): boolean {
 }
 
 export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
-	const api = bootstrap.commerceApiBase;
+	const client = buildClient(window.location.origin);
 	let orderId = bootstrap.orderId ?? "";
 	let finalizeToken = bootstrap.finalizeToken ?? "";
 	let currentOrder: OrderWire | null = null;
@@ -222,10 +221,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 	}
 
 	async function loadOrder(): Promise<OrderWire> {
-		const res = await postCommerce<{ order: OrderWire }>(api, "checkout/get-order", {
-			orderId,
-			finalizeToken,
-		});
+		const res = await client.getOrder({ orderId, finalizeToken });
 		currentOrder = res.order;
 		updateSummary(currentOrder);
 		return currentOrder;
@@ -238,7 +234,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 		}
 		const billingSame = fields.billingSame?.checked;
 
-		const checkoutPayload: Record<string, string | boolean | undefined> = {
+		const res = await client.checkout({
 			cartId: bootstrap.cartId,
 			ownerToken: bootstrap.ownerToken,
 			idempotencyKey: newIdempotencyKey(),
@@ -252,22 +248,17 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 			shippingPostalCode: fields.postalCode?.value.trim() || undefined,
 			shippingCountry: fields.country?.value || undefined,
 			billingSameAsShipping: billingSame || undefined,
-		};
-
-		if (!billingSame) {
-			checkoutPayload.billingAddress1 = fields.billingAddress1?.value.trim() || undefined;
-			checkoutPayload.billingAddress2 = fields.billingAddress2?.value.trim() || undefined;
-			checkoutPayload.billingCity = fields.billingCity?.value.trim() || undefined;
-			checkoutPayload.billingRegion = fields.billingRegion?.value || undefined;
-			checkoutPayload.billingPostalCode = fields.billingPostalCode?.value.trim() || undefined;
-			checkoutPayload.billingCountry = fields.billingCountry?.value || undefined;
-		}
-
-		const res = await postCommerce<{ orderId: string; finalizeToken: string }>(
-			api,
-			"checkout",
-			checkoutPayload,
-		);
+			...(billingSame
+				? {}
+				: {
+						billingAddress1: fields.billingAddress1?.value.trim() || undefined,
+						billingAddress2: fields.billingAddress2?.value.trim() || undefined,
+						billingCity: fields.billingCity?.value.trim() || undefined,
+						billingRegion: fields.billingRegion?.value || undefined,
+						billingPostalCode: fields.billingPostalCode?.value.trim() || undefined,
+						billingCountry: fields.billingCountry?.value || undefined,
+					}),
+		});
 		orderId = res.orderId;
 		finalizeToken = res.finalizeToken;
 		syncUrl();
@@ -315,16 +306,13 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 	}
 
 	async function quoteShipping() {
-		const quoted = await postCommerce<{ rates: ShippingRate[] }>(api, "checkout/shipping/quote", {
-			orderId,
-			finalizeToken,
-		});
+		const quoted = await client.quoteCheckoutShipping({ orderId, finalizeToken });
 		shippingRates = quoted.rates ?? [];
 		renderShippingRates(shippingRates);
 	}
 
 	async function applyShipping(providerId: string, rateId: string) {
-		await postCommerce(api, "checkout/shipping/apply", {
+		await client.applyCheckoutShipping({
 			orderId,
 			finalizeToken,
 			providerId,
@@ -335,7 +323,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 
 	async function applyTax() {
 		if (!taxProviderId) return;
-		await postCommerce(api, "checkout/tax/apply", {
+		await client.applyCheckoutTax({
 			orderId,
 			finalizeToken,
 			providerId: taxProviderId,
@@ -344,11 +332,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 	}
 
 	async function quoteAndApplyTax() {
-		const quoted = await postCommerce<{ quote: { providerId: string } | null }>(
-			api,
-			"checkout/tax/quote",
-			{ orderId, finalizeToken },
-		);
+		const quoted = await client.quoteCheckoutTax({ orderId, finalizeToken });
 		taxProviderId = quoted.quote?.providerId ?? null;
 		if (taxProviderId) {
 			await applyTax();
@@ -364,7 +348,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 			return;
 		}
 		if (providerId !== "stripe-payment-element") {
-			const res = await postCommerce<{ sessionUrl?: string }>(api, "payment/initiate", {
+			const res = await client.initiatePayment({
 				orderId,
 				finalizeToken,
 				idempotencyKey: newIdempotencyKey(),
@@ -376,12 +360,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 			}
 			return;
 		}
-		const res = await postCommerce<{
-			clientSecret?: string;
-			publishableKey?: string;
-			paymentAttemptId?: string;
-			bankPaymentIncentivePercent?: number;
-		}>(api, "payment/initiate", {
+		const res = await client.initiatePayment({
 			orderId,
 			finalizeToken,
 			idempotencyKey: newIdempotencyKey(),
@@ -459,10 +438,7 @@ export function initCheckoutPage(bootstrap: CheckoutBootstrap): void {
 		clearTimeout(bankIncentiveSyncTimer);
 		bankIncentiveSyncTimer = setTimeout(async () => {
 			try {
-				const res = await postCommerce<{
-					clientSecret?: string;
-					amountMinor?: number;
-				}>(api, "payment/bank-incentive/apply", {
+				const res = await client.applyBankPaymentIncentive({
 					orderId,
 					finalizeToken,
 					paymentAttemptId,

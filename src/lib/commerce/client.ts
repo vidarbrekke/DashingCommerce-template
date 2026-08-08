@@ -1,10 +1,10 @@
 import {
 	createStorefrontCommerceClient,
 	type CommerceClientConfig,
-	type PublicPluginApiRouteHandler,
 } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
 import {
 	getPublicPluginApiRouteHandler,
+	type PublicPluginApiRouteHandler,
 	type PublicPluginRuntimeLocals,
 } from "emdash/plugin-utils";
 
@@ -54,6 +54,16 @@ export function buildShopClient(
 		ssrRequestUrl: requestUrl,
 		handlePublicPluginApiRoute: getPublicPluginApiRouteHandler(locals),
 	});
+}
+
+export type ShopSsrContext = {
+	url: { origin: string };
+	request: { url: string };
+	locals: PublicPluginRuntimeLocals | null | undefined;
+};
+
+export function buildShopClientFromAstro(astro: ShopSsrContext) {
+	return buildShopClient(astro.url.origin, astro.request.url, astro.locals);
 }
 
 export type { CommerceClientConfig, PublicPluginApiRouteHandler };

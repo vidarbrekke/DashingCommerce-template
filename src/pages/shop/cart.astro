@@ -1,6 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { buildShopClient } from "../../lib/commerce/client";
+import { buildShopClientFromAstro } from "../../lib/commerce/client";
 import {
 	readCookie,
 	cookieHeader,
@@ -22,7 +22,7 @@ import {
 	getMediaRenditionUrl,
 } from "@emdash-cms/plugin-dashing-commerce/media-rendition";
 
-const client = buildShopClient(Astro.url.origin, Astro.request.url, Astro.locals);
+const client = buildShopClientFromAstro(Astro);
 const siteOrigin = Astro.url.origin;
 
 const cartId = readCookie(Astro.request, CART_ID_COOKIE);

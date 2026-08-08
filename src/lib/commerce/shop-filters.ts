@@ -1,4 +1,5 @@
 import type { StorefrontCommerceClient } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
 
 export function shopListUrl(params: {
 	brandId?: string;
@@ -25,7 +26,18 @@ export function shopTagUrl(tagId: string): string {
 	return shopListUrl({ tagId });
 }
 
-const FILTER_LIST_LIMIT = 100;
+async function resolveLabel(
+	load: () => Promise<string | null | undefined>,
+): Promise<string | null> {
+	try {
+		return (await load()) ?? null;
+	} catch (err) {
+		if (err instanceof PhaseOneCommerceError && err.status === 404) {
+			return null;
+		}
+		throw err;
+	}
+}
 
 export async function resolveShopFilterLabels(
 	client: StorefrontCommerceClient,
@@ -35,24 +47,25 @@ export async function resolveShopFilterLabels(
 		tagId?: string;
 	},
 ): Promise<{ brandName: string | null; categoryName: string | null; tagName: string | null }> {
-	const [brands, categories, tags] = await Promise.all([
+	const [brandName, categoryName, tagName] = await Promise.all([
 		filters.brandId
-			? client.listBrands({ limit: FILTER_LIST_LIMIT }).then((r) => r.items)
-			: Promise.resolve([]),
+			? resolveLabel(async () => {
+					const result = await client.getBrand({ brandId: filters.brandId! });
+					return result.term.name;
+				})
+			: Promise.resolve(null),
 		filters.categoryId
-			? client.listCategories({ limit: FILTER_LIST_LIMIT }).then((r) => r.items)
-			: Promise.resolve([]),
+			? resolveLabel(async () => {
+					const result = await client.getCategory({ categoryId: filters.categoryId! });
+					return result.category.name;
+				})
+			: Promise.resolve(null),
 		filters.tagId
-			? client.listTags({ limit: FILTER_LIST_LIMIT }).then((r) => r.items)
-			: Promise.resolve([]),
+			? resolveLabel(async () => {
+					const result = await client.getTag({ tagId: filters.tagId! });
+					return result.tag.name;
+				})
+			: Promise.resolve(null),
 	]);
-	return {
-		brandName: filters.brandId
-			? (brands.find((item) => item.id === filters.brandId)?.name ?? null)
-			: null,
-		categoryName: filters.categoryId
-			? (categories.find((item) => item.id === filters.categoryId)?.name ?? null)
-			: null,
-		tagName: filters.tagId ? (tags.find((item) => item.id === filters.tagId)?.name ?? null) : null,
-	};
+	return { brandName, categoryName, tagName };
 }
