@@ -74,10 +74,8 @@ export async function updateCartFromForm(
 	});
 	const maxByLine = await resolveMaxPurchasableByLine(client, requestedLines);
 	const { clampedLineItems, adjustments } = clampCartLineItemsToInventory(labeledLines, maxByLine);
-	const currency = input.formData.get("currency")?.toString() || "USD";
 	await client.upsertCart({
 		cartId: input.cartId,
-		currency,
 		ownerToken: input.ownerToken,
 		lineItems: clampedLineItems,
 	});
