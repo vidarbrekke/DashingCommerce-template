@@ -25,7 +25,7 @@ export function shopTagUrl(tagId: string): string {
 	return shopListUrl({ tagId });
 }
 
-const FILTER_LIST_LIMIT = 200;
+const FILTER_LIST_LIMIT = 100;
 
 export async function resolveShopFilterLabels(
 	client: StorefrontCommerceClient,
