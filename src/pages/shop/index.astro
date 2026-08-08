@@ -10,7 +10,10 @@ import {
 	getMediaRenditionUrl,
 } from "@emdash-cms/plugin-dashing-commerce/media-rendition";
 
-const client = buildClient(Astro.url.origin);
+const client = buildClient(Astro.url.origin, {
+	ssrRequestUrl: Astro.request.url,
+	handlePublicPluginApiRoute: Astro.locals.emdash?.handlePublicPluginApiRoute,
+});
 const siteOrigin = Astro.url.origin;
 
 const brandFilter = Astro.url.searchParams.get("brand")?.trim() ?? "";
@@ -29,11 +32,14 @@ try {
 			...(categoryFilter ? { categoryId: categoryFilter } : {}),
 			...(tagFilter ? { tagId: tagFilter } : {}),
 		}),
-		resolveShopFilterLabels(Astro.url.origin, {
-			brandId: brandFilter || undefined,
-			categoryId: categoryFilter || undefined,
-			tagId: tagFilter || undefined,
-		}),
+		resolveShopFilterLabels(
+			{
+				brandId: brandFilter || undefined,
+				categoryId: categoryFilter || undefined,
+				tagId: tagFilter || undefined,
+			},
+			Astro.request.url,
+		),
 	]);
 	result = listResult;
 	filterLabels = labels;

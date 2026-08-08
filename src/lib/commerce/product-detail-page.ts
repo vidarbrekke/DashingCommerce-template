@@ -78,8 +78,12 @@ export async function loadProductDetailPage(
 	request: Request,
 	slug: string,
 	siteOrigin: string,
+	handlePublicPluginApiRoute?: import("./client.js").PublicPluginApiRouteHandler,
 ): Promise<Response | ProductDetailPageModel> {
-	const client = buildClient(siteOrigin);
+	const client = buildClient(siteOrigin, {
+		ssrRequestUrl: request.url,
+		handlePublicPluginApiRoute,
+	});
 
 	let detail: StorefrontProductBySlugResponseContract | null = null;
 	let fetchError: string | null = null;

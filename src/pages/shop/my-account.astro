@@ -4,7 +4,10 @@ import { buildClient } from "../../lib/commerce/client";
 import type { CustomerProfileContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
 import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
 
-const client = buildClient(Astro.url.origin);
+const client = buildClient(Astro.url.origin, {
+	ssrRequestUrl: Astro.request.url,
+	handlePublicPluginApiRoute: Astro.locals.emdash?.handlePublicPluginApiRoute,
+});
 const sessionCookie = Astro.request.headers.get("cookie") ?? "";
 
 let profile: CustomerProfileContract | null = null;

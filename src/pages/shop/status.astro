@@ -25,7 +25,10 @@ if (!orderId) {
 	return Astro.redirect("/shop");
 }
 
-const client = buildClient(Astro.url.origin);
+const client = buildClient(Astro.url.origin, {
+	ssrRequestUrl: Astro.request.url,
+	handlePublicPluginApiRoute: Astro.locals.emdash?.handlePublicPluginApiRoute,
+});
 
 let fetchError: string | null = null;
 let rateLimited = false;

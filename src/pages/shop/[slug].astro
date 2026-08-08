@@ -9,7 +9,12 @@ if (slug === undefined || slug.length === 0) {
 	return Astro.redirect("/shop");
 }
 
-const pageResult = await loadProductDetailPage(Astro.request, slug, Astro.url.origin);
+const pageResult = await loadProductDetailPage(
+	Astro.request,
+	slug,
+	Astro.url.origin,
+	Astro.locals.emdash?.handlePublicPluginApiRoute,
+);
 if (pageResult instanceof Response) {
 	return pageResult;
 }

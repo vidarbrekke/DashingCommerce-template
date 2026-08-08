@@ -23,13 +23,19 @@ export function shopTagUrl(tagId: string): string {
 	return shopListUrl({ tagId });
 }
 
+import { createWorkerSafeFetch } from "./client.js";
+
 type CatalogListItem = { id: string; name: string; slug: string };
 
 async function fetchCatalogListItems(
-	origin: string,
 	route: "catalog/brand/list" | "catalog/category/list" | "catalog/tag/list",
+	ssrRequestUrl?: string,
 ): Promise<CatalogListItem[]> {
-	const res = await fetch(`${origin}/_emdash/api/plugins/commerce/${route}`, {
+	const fetchFn =
+		typeof window === "undefined" && ssrRequestUrl
+			? createWorkerSafeFetch(ssrRequestUrl)
+			: fetch;
+	const res = await fetchFn(`/_emdash/api/plugins/commerce/${route}`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
 		body: JSON.stringify({ limit: 200 }),
@@ -40,15 +46,19 @@ async function fetchCatalogListItems(
 }
 
 export async function resolveShopFilterLabels(
-	origin: string,
-	filters: { brandId?: string; categoryId?: string; tagId?: string },
+	filters: {
+		brandId?: string;
+		categoryId?: string;
+		tagId?: string;
+	},
+	ssrRequestUrl?: string,
 ): Promise<{ brandName: string | null; categoryName: string | null; tagName: string | null }> {
 	const [brands, categories, tags] = await Promise.all([
-		filters.brandId ? fetchCatalogListItems(origin, "catalog/brand/list") : Promise.resolve([]),
+		filters.brandId ? fetchCatalogListItems("catalog/brand/list", ssrRequestUrl) : Promise.resolve([]),
 		filters.categoryId
-			? fetchCatalogListItems(origin, "catalog/category/list")
+			? fetchCatalogListItems("catalog/category/list", ssrRequestUrl)
 			: Promise.resolve([]),
-		filters.tagId ? fetchCatalogListItems(origin, "catalog/tag/list") : Promise.resolve([]),
+		filters.tagId ? fetchCatalogListItems("catalog/tag/list", ssrRequestUrl) : Promise.resolve([]),
 	]);
 	return {
 		brandName: filters.brandId
