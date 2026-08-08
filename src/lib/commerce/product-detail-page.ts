@@ -5,8 +5,9 @@ import {
 	MEDIA_STORE_HERO_WIDTH,
 	getMediaRenditionUrl,
 } from "@emdash-cms/plugin-dashing-commerce/media-rendition";
+import type { PublicPluginRuntimeLocals } from "emdash/plugin-utils";
 
-import { buildClient } from "./client.js";
+import { buildShopClient } from "./client.js";
 import {
 	cookieHeader,
 	formatPrice,
@@ -78,12 +79,9 @@ export async function loadProductDetailPage(
 	request: Request,
 	slug: string,
 	siteOrigin: string,
-	handlePublicPluginApiRoute?: import("./client.js").PublicPluginApiRouteHandler,
+	locals?: PublicPluginRuntimeLocals | null,
 ): Promise<Response | ProductDetailPageModel> {
-	const client = buildClient(siteOrigin, {
-		ssrRequestUrl: request.url,
-		handlePublicPluginApiRoute,
-	});
+	const client = buildShopClient(siteOrigin, request.url, locals);
 
 	let detail: StorefrontProductBySlugResponseContract | null = null;
 	let fetchError: string | null = null;

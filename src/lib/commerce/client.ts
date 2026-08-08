@@ -3,6 +3,10 @@ import {
 	type CommerceClientConfig,
 	type PublicPluginApiRouteHandler,
 } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
+import {
+	getPublicPluginApiRouteHandler,
+	type PublicPluginRuntimeLocals,
+} from "emdash/plugin-utils";
 
 /** Resolve same-worker subrequests against the incoming request (Workers fallback). */
 export function createWorkerSafeFetch(ssrRequestUrl: string): typeof fetch {
@@ -38,6 +42,18 @@ export function buildClient(baseUrl: string, options?: BuildClientOptions) {
 		config.fetch = createWorkerSafeFetch(options.ssrRequestUrl);
 	}
 	return createStorefrontCommerceClient(config);
+}
+
+/** SSR shop pages: in-process public plugin routes (required on Cloudflare Workers). */
+export function buildShopClient(
+	siteOrigin: string,
+	requestUrl: string,
+	locals: PublicPluginRuntimeLocals | null | undefined,
+) {
+	return buildClient(siteOrigin, {
+		ssrRequestUrl: requestUrl,
+		handlePublicPluginApiRoute: getPublicPluginApiRouteHandler(locals),
+	});
 }
 
 export type { CommerceClientConfig, PublicPluginApiRouteHandler };

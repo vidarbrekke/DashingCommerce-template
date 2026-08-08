@@ -6,7 +6,7 @@
  * so no client-side JS is required. Rate-limited by the backend (10s cache).
  */
 import Base from "../../layouts/Base.astro";
-import { buildClient } from "../../lib/commerce/client";
+import { buildShopClient } from "../../lib/commerce/client";
 import { formatCustomerOrderReference } from "../../lib/commerce/cart";
 import type { FinalizationStatusResponseContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
 import { PhaseOneCommerceError } from "@emdash-cms/plugin-dashing-commerce/contracts/phase-1-clients";
@@ -25,10 +25,7 @@ if (!orderId) {
 	return Astro.redirect("/shop");
 }
 
-const client = buildClient(Astro.url.origin, {
-	ssrRequestUrl: Astro.request.url,
-	handlePublicPluginApiRoute: Astro.locals.emdash?.handlePublicPluginApiRoute,
-});
+const client = buildShopClient(Astro.url.origin, Astro.request.url, Astro.locals);
 
 let fetchError: string | null = null;
 let rateLimited = false;

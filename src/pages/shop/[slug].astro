@@ -13,7 +13,7 @@ const pageResult = await loadProductDetailPage(
 	Astro.request,
 	slug,
 	Astro.url.origin,
-	Astro.locals.emdash?.handlePublicPluginApiRoute,
+	Astro.locals,
 );
 if (pageResult instanceof Response) {
 	return pageResult;

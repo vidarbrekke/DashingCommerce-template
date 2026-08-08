@@ -1,7 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import ProductCatalogMeta from "../../components/ProductCatalogMeta.astro";
-import { buildClient } from "../../lib/commerce/client";
+import { buildShopClient } from "../../lib/commerce/client";
 import { formatPrice } from "../../lib/commerce/cart";
 import { resolveShopFilterLabels } from "../../lib/commerce/shop-filters";
 import type { StorefrontProductListResponseContract } from "@emdash-cms/plugin-dashing-commerce/contracts/route-response-contracts";
@@ -10,10 +10,7 @@ import {
 	getMediaRenditionUrl,
 } from "@emdash-cms/plugin-dashing-commerce/media-rendition";
 
-const client = buildClient(Astro.url.origin, {
-	ssrRequestUrl: Astro.request.url,
-	handlePublicPluginApiRoute: Astro.locals.emdash?.handlePublicPluginApiRoute,
-});
+const client = buildShopClient(Astro.url.origin, Astro.request.url, Astro.locals);
 const siteOrigin = Astro.url.origin;
 
 const brandFilter = Astro.url.searchParams.get("brand")?.trim() ?? "";
@@ -32,14 +29,11 @@ try {
 			...(categoryFilter ? { categoryId: categoryFilter } : {}),
 			...(tagFilter ? { tagId: tagFilter } : {}),
 		}),
-		resolveShopFilterLabels(
-			{
-				brandId: brandFilter || undefined,
-				categoryId: categoryFilter || undefined,
-				tagId: tagFilter || undefined,
-			},
-			Astro.request.url,
-		),
+		resolveShopFilterLabels(client, {
+			brandId: brandFilter || undefined,
+			categoryId: categoryFilter || undefined,
+			tagId: tagFilter || undefined,
+		}),
 	]);
 	result = listResult;
 	filterLabels = labels;

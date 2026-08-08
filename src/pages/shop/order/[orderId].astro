@@ -1,6 +1,6 @@
 ---
 import Base from "../../../layouts/Base.astro";
-import { buildClient } from "../../../lib/commerce/client";
+import { buildShopClient } from "../../../lib/commerce/client";
 import {
 	formatPrice,
 	FINALIZE_TOKEN_PARAM,
@@ -26,10 +26,7 @@ if (!finalizeToken) {
 	return Astro.redirect("/shop");
 }
 
-const client = buildClient(Astro.url.origin, {
-	ssrRequestUrl: Astro.request.url,
-	handlePublicPluginApiRoute: Astro.locals.emdash?.handlePublicPluginApiRoute,
-});
+const client = buildShopClient(Astro.url.origin, Astro.request.url, Astro.locals);
 
 let order: CheckoutGetOrderResponseContract | null = null;
 let fetchError: string | null = null;
