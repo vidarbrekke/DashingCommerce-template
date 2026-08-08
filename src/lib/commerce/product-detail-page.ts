@@ -175,7 +175,6 @@ export async function loadProductDetailPage(
 					try {
 						upsert = await client.upsertCart({
 							cartId,
-							currency: "USD",
 							ownerToken: existingOwnerToken,
 							upsertMode: "append",
 							lineItems,
@@ -189,7 +188,6 @@ export async function loadProductDetailPage(
 						}
 						upsert = await client.upsertCart({
 							cartId: newCartId(),
-							currency: "USD",
 							upsertMode: "append",
 							lineItems,
 						});
